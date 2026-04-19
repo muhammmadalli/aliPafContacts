@@ -1,0 +1,7 @@
+<resources>
+    <style name="Theme.AliPafContacts" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/nextcloud_blue</item>
+        <item name="colorPrimaryVariant">@color/nextcloud_blue_dark</item>
+        <item name="colorOnPrimary">@android:color/white</item>
+    </style>
+</resources>

@@ -1,0 +1,36 @@
+<resources>
+    <string name="app_name">AirContacts</string>
+    <string name="account_type_address_book">Ali Paf Contacts address book</string>
+
+    <!-- Login screen -->
+    <string name="login_title">Connect to Nextcloud</string>
+    <string name="login_url_hint">Address Book URL</string>
+    <string name="login_username_hint">Username</string>
+    <string name="login_password_hint">App Password</string>
+    <string name="login_button">Connect</string>
+    <string name="login_connecting">Connecting…</string>
+    <string name="login_error_empty_fields">Please fill in all fields.</string>
+    <string name="login_error_invalid_url">Invalid URL.</string>
+    <string name="login_error_auth">Authentication failed. Check your credentials.</string>
+    <string name="login_error_discovery">Could not discover CardDAV service.</string>
+    <string name="login_error_network">Network error: %1$s</string>
+
+    <!-- Main screen -->
+    <string name="main_title">AirContacts</string>
+    <string name="main_add_account">Add syncing account</string>
+    <string name="main_no_accounts">No accounts yet.\nTap + to add the syncing account.</string>
+    <string name="main_remove_account">Remove account</string>
+    <string name="main_sync_now">Sync now</string>
+
+    <!-- Address book screen -->
+    <string name="addressbook_title">Address Books</string>
+    <string name="addressbook_select_hint">Enable address books to sync:</string>
+    <string name="addressbook_save">Save</string>
+    <string name="addressbook_loading">Loading address books…</string>
+    <string name="addressbook_error">Could not load address books: %1$s</string>
+
+    <!-- Notifications -->
+    <string name="notification_channel_sync">Sync status</string>
+    <string name="notification_sync_error_title">Sync error</string>
+    <string name="notification_sync_error_text">Could not sync %1$s</string>
+</resources>

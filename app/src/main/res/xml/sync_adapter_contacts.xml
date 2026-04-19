@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Registers ContactsSyncAdapterService as the sync adapter for:
+      • contentAuthority = android.provider.contacts  (contacts provider)
+      • accountType      = ali.paf.contacts.address_book
+-->
+<sync-adapter xmlns:android="http://schemas.android.com/apk/res/android"
+    android:contentAuthority="com.android.contacts"
+    android:accountType="ali.paf.contacts.address_book"
+    android:supportsUploading="true"
+    android:allowParallelSyncs="false"
+    android:isAlwaysSyncable="true"
+    android:userVisible="false" />
