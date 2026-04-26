@@ -3,7 +3,7 @@
     <string name="account_type_address_book">PAFCOM LTE address book</string>
 
     <!-- Login screen -->
-    <string name="login_title">Connect to Nextcloud</string>
+    <string name="login_title">Connect to CardDAV syncServer</string>
     <string name="login_url_hint">Address Book URL</string>
     <string name="login_username_hint">Username</string>
     <string name="login_password_hint">App Password</string>
