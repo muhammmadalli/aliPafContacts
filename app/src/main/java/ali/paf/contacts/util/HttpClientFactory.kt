@@ -19,6 +19,7 @@ object HttpClientFactory {
      * Builds an OkHttpClient that:
      * - Attaches HTTP Basic auth to every request
      * - Trusts ALL server certificates (self-signed, expired, any CA)
+     * - Leaves redirect handling to dav4jvm/WebDAV callers
      * - Always uses mobile data (binds socket to the cellular network)
      * - Does not check network availability — assumes internet is always present
      */
@@ -52,7 +53,8 @@ object HttpClientFactory {
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(120, TimeUnit.SECONDS)
             .writeTimeout(60, TimeUnit.SECONDS)
-            .followRedirects(true)
+            .followRedirects(false)
+            .followSslRedirects(false)
 
         // ── Force mobile data ────────────────────────────────────────────────
         // Bind sockets to the cellular network so traffic always goes over

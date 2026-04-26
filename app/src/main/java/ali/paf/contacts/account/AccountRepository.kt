@@ -4,6 +4,7 @@ import android.accounts.Account
 import android.accounts.AccountManager
 import android.content.*
 import android.os.Bundle
+import android.provider.ContactsContract
 import android.util.Log
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -67,24 +68,50 @@ class AccountRepository @Inject constructor(private val context: Context) {
         } else {
             Log.i(TAG, "Created address-book account: $abName")
         }
-        ContentResolver.setSyncAutomatically(abAccount, "com.android.contacts", true)
-        ContentResolver.addPeriodicSync(abAccount, "com.android.contacts", Bundle.EMPTY, 4 * 60 * 60L)
+        // Some Android builds keep sync disabled in Settings until the account/authority
+        // pair is explicitly marked syncable.
+        ContentResolver.setIsSyncable(abAccount, ContactsContract.AUTHORITY, 1)
+        ContentResolver.setSyncAutomatically(abAccount, ContactsContract.AUTHORITY, true)
+        ContentResolver.addPeriodicSync(abAccount, ContactsContract.AUTHORITY, Bundle.EMPTY, 4 * 60 * 60L)
+        ensureContactsAreVisible(abAccount)
         return abAccount
     }
 
     fun removeAddressBookAccount(abAccount: Account) {
-        ContentResolver.removePeriodicSync(abAccount, "com.android.contacts", Bundle.EMPTY)
+        ContentResolver.removePeriodicSync(abAccount, ContactsContract.AUTHORITY, Bundle.EMPTY)
+        ContentResolver.setSyncAutomatically(abAccount, ContactsContract.AUTHORITY, false)
+        ContentResolver.setIsSyncable(abAccount, ContactsContract.AUTHORITY, 0)
         accountManager.removeAccountExplicitly(abAccount)
         Log.i(TAG, "Removed address-book account: ${abAccount.name}")
     }
 
-    fun requestSync(mainAccount: Account) {
+    fun requestSync(mainAccount: Account, forceResync: Boolean = false) {
         getAddressBookAccounts(mainAccount).forEach { ab ->
+            ensureContactsAreVisible(ab)
             val extras = Bundle().apply {
                 putBoolean(ContentResolver.SYNC_EXTRAS_MANUAL, true)
                 putBoolean(ContentResolver.SYNC_EXTRAS_EXPEDITED, true)
+                if (forceResync) {
+                    putBoolean(AccountConfig.SYNC_EXTRA_FORCE_RESYNC, true)
+                }
             }
-            ContentResolver.requestSync(ab, "com.android.contacts", extras)
+            ContentResolver.requestSync(ab, ContactsContract.AUTHORITY, extras)
+        }
+    }
+
+    private fun ensureContactsAreVisible(account: Account) {
+        val values = ContentValues().apply {
+            put(ContactsContract.Settings.ACCOUNT_NAME, account.name)
+            put(ContactsContract.Settings.ACCOUNT_TYPE, account.type)
+            put(ContactsContract.Settings.UNGROUPED_VISIBLE, 1)
+            put(ContactsContract.Settings.SHOULD_SYNC, 1)
+        }
+
+        val where = "${ContactsContract.Settings.ACCOUNT_NAME}=? AND ${ContactsContract.Settings.ACCOUNT_TYPE}=?"
+        val args = arrayOf(account.name, account.type)
+        val updated = context.contentResolver.update(ContactsContract.Settings.CONTENT_URI, values, where, args)
+        if (updated == 0) {
+            context.contentResolver.insert(ContactsContract.Settings.CONTENT_URI, values)
         }
     }
 }

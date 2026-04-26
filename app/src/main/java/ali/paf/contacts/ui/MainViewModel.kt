@@ -32,5 +32,5 @@ class MainViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) { accountRepository.removeMainAccount(account); refresh() }
     }
 
-    fun syncNow(account: Account) { accountRepository.requestSync(account) }
+    fun syncNow(account: Account) { accountRepository.requestSync(account, forceResync = true) }
 }

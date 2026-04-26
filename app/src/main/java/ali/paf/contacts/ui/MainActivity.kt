@@ -26,10 +26,14 @@ class MainActivity : AppCompatActivity() {
     private val viewModel: MainViewModel by viewModels()
     private lateinit var adapter: AccountsAdapter
 
-    private val requestContactsPermission = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        if (!granted) Snackbar.make(binding.root, "Contacts permission is required.", Snackbar.LENGTH_LONG).show()
+    private val requestContactsPermissions = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { grants ->
+        val hasAllPermissions = grants[Manifest.permission.READ_CONTACTS] == true &&
+            grants[Manifest.permission.WRITE_CONTACTS] == true
+        if (!hasAllPermissions) {
+            Snackbar.make(binding.root, "Contacts permissions are required.", Snackbar.LENGTH_LONG).show()
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -39,8 +43,14 @@ class MainActivity : AppCompatActivity() {
         setSupportActionBar(binding.toolbar)
         supportActionBar?.setTitle(R.string.main_title)
 
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED)
-            requestContactsPermission.launch(Manifest.permission.WRITE_CONTACTS)
+        val hasReadContacts = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
+        val hasWriteContacts = ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_CONTACTS) == PackageManager.PERMISSION_GRANTED
+        if (!hasReadContacts || !hasWriteContacts) {
+            requestContactsPermissions.launch(arrayOf(
+                Manifest.permission.READ_CONTACTS,
+                Manifest.permission.WRITE_CONTACTS
+            ))
+        }
 
         adapter = AccountsAdapter(
             onSyncClick = { viewModel.syncNow(it) },

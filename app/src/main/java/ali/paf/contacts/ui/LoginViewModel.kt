@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.net.URI
+import java.util.Locale
 import javax.inject.Inject
 
 @HiltViewModel
@@ -68,6 +69,36 @@ class LoginViewModel @Inject constructor(
     private fun normaliseUrl(raw: String): String? {
         val trimmed = raw.trim().trimEnd('/')
         val withScheme = if (trimmed.startsWith("https://") || trimmed.startsWith("http://")) trimmed else "https://$trimmed"
-        return try { URI(withScheme).toString() } catch (e: Exception) { null }
+        return try {
+            val uri = URI(withScheme)
+            val cleanedPath = stripDavSuffix(uri.path.orEmpty())
+            URI(
+                uri.scheme,
+                uri.userInfo,
+                uri.host,
+                uri.port,
+                cleanedPath,
+                null,
+                null
+            ).toString().trimEnd('/')
+        } catch (e: Exception) { null }
+    }
+
+    private fun stripDavSuffix(path: String): String {
+        val normalisedPath = path.trimEnd('/')
+        if (normalisedPath.isEmpty()) return ""
+
+        val lowerPath = normalisedPath.lowercase(Locale.ROOT)
+        val suffixes = listOf(
+            "/remote.php/dav",
+            "/remote.php/webdav",
+            "/remote.php/carddav",
+            "/.well-known/carddav",
+            "/.well-known/caldav"
+        )
+
+        val matchedSuffix = suffixes.firstOrNull { lowerPath.endsWith(it) } ?: return normalisedPath
+        val trimmed = normalisedPath.dropLast(matchedSuffix.length).trimEnd('/')
+        return if (trimmed.isEmpty()) "" else trimmed
     }
 }
