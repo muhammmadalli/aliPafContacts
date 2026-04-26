@@ -4,6 +4,7 @@ import android.accounts.Account
 import android.content.*
 import android.os.Bundle
 import android.provider.ContactsContract
+import android.provider.ContactsContract.CommonDataKinds.Phone
 import android.util.Log
 import at.bitfire.dav4jvm.DavAddressBook
 import at.bitfire.dav4jvm.Response
@@ -28,11 +29,17 @@ class ContactsSyncManager(
     private val collectionUrl: String,
     private val extras: Bundle
 ) {
+    private data class CustomPhoneLabel(val number: String, val label: String)
+
     companion object {
         private const val TAG = "ContactsSyncManager"
         private const val SYNC_STATE_CTAG = "ctag"
         private const val SYNC_STATE_SYNC_TOKEN = "sync_token"
         private const val CHUNK_SIZE = 15
+        private val STANDARD_PHONE_TYPES = setOf(
+            "HOME", "WORK", "CELL", "VOICE", "FAX", "PAGER", "CAR", "ISDN",
+            "PREF", "MSG", "BBS", "MODEM", "PCS", "VIDEO", "TEXTPHONE", "TEXTPHONE"
+        )
     }
 
     private val davAddressBook = DavAddressBook(httpClient, collectionUrl.toHttpUrl())
@@ -156,7 +163,7 @@ class ContactsSyncManager(
                 if (vcardData == null || fileName == null) return@multiget
                 try {
                     val contacts = Contact.fromReader(StringReader(vcardData), false, null)
-                    if (contacts.isNotEmpty()) applyContactToProvider(contacts.first(), fileName, eTag)
+                    if (contacts.isNotEmpty()) applyContactToProvider(contacts.first(), fileName, eTag, vcardData)
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to parse/store $fileName", e)
                 }
@@ -217,7 +224,7 @@ class ContactsSyncManager(
         ac.getContact()
     } catch (e: Exception) { Log.e(TAG, "Could not read contact $rawContactId", e); null }
 
-    private fun applyContactToProvider(contact: Contact, fileName: String, eTag: String?) {
+    private fun applyContactToProvider(contact: Contact, fileName: String, eTag: String?, rawVCard: String) {
         var existingId: Long? = null
         provider.query(ContactsContract.RawContacts.CONTENT_URI, arrayOf(ContactsContract.RawContacts._ID),
             "${ContactsContract.RawContacts.ACCOUNT_TYPE}=? AND ${ContactsContract.RawContacts.ACCOUNT_NAME}=? AND " +
@@ -226,16 +233,108 @@ class ContactsSyncManager(
         )?.use { if (it.moveToFirst()) existingId = it.getLong(0) }
 
         val ab = buildAndroidAddressBook()
-        if (existingId != null) {
+        val rawContactId = if (existingId != null) {
             val values = ContentValues().apply { put(ContactsContract.RawContacts._ID, existingId) }
             val ac = at.bitfire.vcard4android.AndroidContact(ab, values)
             ac.update(contact)
+            existingId!!
         } else {
             val ac = at.bitfire.vcard4android.AndroidContact(ab, contact, fileName, eTag)
             ac.add()
             updateLocalContactMeta(ac.id!!, fileName, eTag, dirty = false, deleted = false)
+            ac.id!!
+        }
+        applyCustomPhoneLabels(rawContactId, extractCustomPhoneLabels(rawVCard))
+    }
+
+    private fun applyCustomPhoneLabels(rawContactId: Long, customPhoneLabels: List<CustomPhoneLabel>) {
+        if (customPhoneLabels.isEmpty()) return
+
+        val byNumber = customPhoneLabels.associateBy { normalizePhoneNumber(it.number) }
+        provider.query(
+            ContactsContract.Data.CONTENT_URI,
+            arrayOf(
+                ContactsContract.Data._ID,
+                Phone.NUMBER,
+                Phone.TYPE,
+                Phone.LABEL
+            ),
+            "${ContactsContract.Data.RAW_CONTACT_ID}=? AND ${ContactsContract.Data.MIMETYPE}=?",
+            arrayOf(rawContactId.toString(), Phone.CONTENT_ITEM_TYPE),
+            null
+        )?.use { cursor ->
+            while (cursor.moveToNext()) {
+                val dataId = cursor.getLong(0)
+                val currentNumber = cursor.getString(1) ?: continue
+                val currentType = cursor.getInt(2)
+                val currentLabel = cursor.getString(3)
+                val target = byNumber[normalizePhoneNumber(currentNumber)] ?: continue
+
+                if (currentType == Phone.TYPE_CUSTOM && currentLabel == target.label) continue
+
+                provider.update(
+                    ContactsContract.Data.CONTENT_URI,
+                    ContentValues().apply {
+                        put(Phone.TYPE, Phone.TYPE_CUSTOM)
+                        put(Phone.LABEL, target.label)
+                    },
+                    "${ContactsContract.Data._ID}=?",
+                    arrayOf(dataId.toString())
+                )
+            }
         }
     }
+
+    private fun extractCustomPhoneLabels(rawVCard: String): List<CustomPhoneLabel> {
+        return unfoldVCard(rawVCard).mapNotNull { line ->
+            if (!line.startsWith("TEL", ignoreCase = true)) return@mapNotNull null
+
+            val separator = line.indexOf(':')
+            if (separator < 0) return@mapNotNull null
+
+            val params = line.substring(3, separator)
+            val number = line.substring(separator + 1).trim()
+            val label = extractCustomPhoneLabel(params) ?: return@mapNotNull null
+            if (number.isEmpty()) return@mapNotNull null
+
+            CustomPhoneLabel(number = number, label = label)
+        }
+    }
+
+    private fun unfoldVCard(rawVCard: String): List<String> {
+        val lines = mutableListOf<String>()
+        rawVCard.replace("\r\n", "\n").replace('\r', '\n').split('\n').forEach { line ->
+            if (line.startsWith(" ") || line.startsWith("\t")) {
+                if (lines.isNotEmpty()) lines[lines.lastIndex] += line.drop(1)
+            } else {
+                lines += line
+            }
+        }
+        return lines
+    }
+
+    private fun extractCustomPhoneLabel(params: String): String? {
+        if (params.isBlank()) return null
+
+        val tokens = params
+            .trimStart(';')
+            .split(';')
+            .flatMap { token ->
+                val value = token.substringAfter('=', token)
+                value.split(',')
+            }
+            .map { it.trim().uppercase() }
+            .filter { it.isNotEmpty() }
+
+        val customType = tokens.firstOrNull { token ->
+            token !in STANDARD_PHONE_TYPES && token != "TYPE"
+        } ?: return null
+
+        return customType.removePrefix("X-")
+    }
+
+    private fun normalizePhoneNumber(number: String): String =
+        number.filterNot { it.isWhitespace() || it == '-' || it == '(' || it == ')' }
 
     private fun updateLocalContactMeta(rawContactId: Long, remoteFileName: String?, eTag: String?, dirty: Boolean, deleted: Boolean) {
         val values = ContentValues().apply {
