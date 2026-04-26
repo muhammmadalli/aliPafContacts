@@ -21,6 +21,8 @@ class MainViewModel @Inject constructor(
 
     private val _accounts = MutableStateFlow<List<Account>>(emptyList())
     val accounts: StateFlow<List<Account>> = _accounts
+    private val _syncMessage = MutableStateFlow<String?>(null)
+    val syncMessage: StateFlow<String?> = _syncMessage
 
     fun refresh() {
         viewModelScope.launch {
@@ -32,5 +34,17 @@ class MainViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) { accountRepository.removeMainAccount(account); refresh() }
     }
 
-    fun syncNow(account: Account) { accountRepository.requestSync(account, forceResync = true) }
+    fun syncNow(account: Account) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val result = accountRepository.syncNowDirect(account, forceResync = true)
+            _syncMessage.value = result.fold(
+                onSuccess = { "Synced $it address book(s) for ${account.name}." },
+                onFailure = { "Sync failed for ${account.name}: ${it.message ?: "Unknown error"}" }
+            )
+        }
+    }
+
+    fun clearSyncMessage() {
+        _syncMessage.value = null
+    }
 }

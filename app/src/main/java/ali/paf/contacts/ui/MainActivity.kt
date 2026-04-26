@@ -69,6 +69,14 @@ class MainActivity : AppCompatActivity() {
                 binding.tvEmpty.visibility = if (accounts.isEmpty()) View.VISIBLE else View.GONE
             }
         }
+
+        lifecycleScope.launch {
+            viewModel.syncMessage.collect { message ->
+                if (message.isNullOrEmpty()) return@collect
+                Snackbar.make(binding.root, message, Snackbar.LENGTH_LONG).show()
+                viewModel.clearSyncMessage()
+            }
+        }
     }
 
     override fun onResume() { super.onResume(); viewModel.refresh() }

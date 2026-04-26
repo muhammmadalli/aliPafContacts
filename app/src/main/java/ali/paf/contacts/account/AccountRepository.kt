@@ -6,6 +6,8 @@ import android.content.*
 import android.os.Bundle
 import android.provider.ContactsContract
 import android.util.Log
+import ali.paf.contacts.sync.ContactsSyncManager
+import ali.paf.contacts.util.HttpClientFactory
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -96,6 +98,42 @@ class AccountRepository @Inject constructor(private val context: Context) {
                 }
             }
             ContentResolver.requestSync(ab, ContactsContract.AUTHORITY, extras)
+        }
+    }
+
+    fun syncNowDirect(mainAccount: Account, forceResync: Boolean = false): Result<Int> {
+        val am = AccountManager.get(context)
+        val addressBooks = getAddressBookAccounts(mainAccount)
+        if (addressBooks.isEmpty()) {
+            return Result.failure(IllegalStateException("No address books found for ${mainAccount.name}"))
+        }
+
+        val baseUrl = am.getUserData(mainAccount, AccountConfig.KEY_BASE_URL)
+            ?: return Result.failure(IllegalStateException("Missing base URL for ${mainAccount.name}"))
+        val username = am.getUserData(mainAccount, AccountConfig.KEY_USERNAME)
+            ?: return Result.failure(IllegalStateException("Missing username for ${mainAccount.name}"))
+        val password = am.getPassword(mainAccount)
+            ?: return Result.failure(IllegalStateException("Missing password for ${mainAccount.name}"))
+
+        return runCatching {
+            var syncedCount = 0
+            addressBooks.forEach { ab ->
+                ensureContactsAreVisible(ab)
+                val collectionUrl = am.getUserData(ab, AccountConfig.KEY_COLLECTION_URL)
+                    ?: error("Missing collection URL for ${ab.name}")
+                val extras = Bundle().apply {
+                    if (forceResync) putBoolean(AccountConfig.SYNC_EXTRA_FORCE_RESYNC, true)
+                }
+                val provider = requireNotNull(
+                    context.contentResolver.acquireContentProviderClient(ContactsContract.AUTHORITY)
+                ) { "Could not acquire contacts provider" }
+                provider.use {
+                    val httpClient = HttpClientFactory.create(context, username, password)
+                    ContactsSyncManager(context, ab, it, httpClient, collectionUrl, extras).performSync()
+                    syncedCount++
+                }
+            }
+            syncedCount
         }
     }
 
