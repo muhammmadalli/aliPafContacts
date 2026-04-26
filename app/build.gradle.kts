@@ -56,7 +56,9 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging)
 
-    implementation(libs.dav4jvm)
+    implementation(libs.dav4jvm) {
+        exclude(group = "org.ogce", module = "xpp3")
+    }
     implementation(libs.vcard4android)
     coreLibraryDesugaring(libs.desugar.jdk.libs)
 }
