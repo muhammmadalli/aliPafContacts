@@ -14,11 +14,9 @@ import at.bitfire.dav4jvm.exception.HttpException
 import at.bitfire.dav4jvm.property.*
 import at.bitfire.vcard4android.Contact
 import at.bitfire.vcard4android.GroupMethod
-import at.bitfire.vcard4android.LabeledProperty
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody.Companion.toRequestBody
-import ezvcard.property.Impp
 import ezvcard.VCardVersion
 import java.io.ByteArrayOutputStream
 import java.io.StringReader
@@ -263,38 +261,11 @@ class ContactsSyncManager(
 
     private fun buildUploadVCard(contact: Contact, rawContactId: Long): String {
         val jabberEntries = queryJabberImEntries(rawContactId)
-        if (jabberEntries.isNotEmpty()) {
-            mergeJabberEntriesIntoContact(contact, jabberEntries)
-        }
-
         val baseVCard = ByteArrayOutputStream()
             .also { contact.writeVCard(VCardVersion.V4_0, it) }
             .toString(Charsets.UTF_8.name())
 
         return appendLegacyJabberProperties(baseVCard, jabberEntries)
-    }
-
-    private fun mergeJabberEntriesIntoContact(contact: Contact, jabberEntries: List<CustomImEntry>) {
-        val existingHandles = contact.impps
-            .asSequence()
-            .mapNotNull { labeledProperty ->
-                val property = labeledProperty.property as? Impp ?: return@mapNotNull null
-                val protocol = property.protocol?.lowercase() ?: return@mapNotNull null
-                if (protocol != "xmpp" && protocol != "jabber") return@mapNotNull null
-                normalizeImHandle(property.handle)
-            }
-            .toSet()
-
-        jabberEntries.forEach { entry ->
-            if (normalizeImHandle(entry.handle) in existingHandles) return@forEach
-
-            val property = Impp.xmpp(entry.handle)
-            when (entry.type) {
-                Im.TYPE_HOME -> property.types += ezvcard.parameter.ImppType.HOME
-                Im.TYPE_WORK -> property.types += ezvcard.parameter.ImppType.WORK
-            }
-            contact.impps.add(LabeledProperty(property, entry.label))
-        }
     }
 
     private fun appendLegacyJabberProperties(baseVCard: String, jabberEntries: List<CustomImEntry>): String {
@@ -426,19 +397,45 @@ class ContactsSyncManager(
     }
 
     private fun extractCustomImEntries(rawVCard: String): List<CustomImEntry> {
-        return unfoldVCard(rawVCard).mapNotNull { line ->
-            if (!line.startsWith(LEGACY_JABBER_PROPERTY, ignoreCase = true)) return@mapNotNull null
+        return unfoldVCard(rawVCard)
+            .mapNotNull { line -> parseCustomImEntry(line) }
+            .distinctBy { entry -> normalizeImHandle(entry.handle) }
+    }
 
-            val separator = line.indexOf(':')
-            if (separator < 0) return@mapNotNull null
-
-            val params = line.substring(LEGACY_JABBER_PROPERTY.length, separator)
-            val handle = unescapeVCardValue(line.substring(separator + 1).trim())
-            if (handle.isBlank()) return@mapNotNull null
-
-            val (type, label) = extractImTypeAndLabel(params)
-            CustomImEntry(handle = handle, type = type, label = label)
+    private fun parseCustomImEntry(line: String): CustomImEntry? {
+        return when {
+            line.startsWith(LEGACY_JABBER_PROPERTY, ignoreCase = true) -> parseLegacyJabberEntry(line)
+            line.startsWith("IMPP", ignoreCase = true) -> parseImppEntry(line)
+            else -> null
         }
+    }
+
+    private fun parseLegacyJabberEntry(line: String): CustomImEntry? {
+        val separator = line.indexOf(':')
+        if (separator < 0) return null
+
+        val params = line.substring(LEGACY_JABBER_PROPERTY.length, separator)
+        val handle = unescapeVCardValue(line.substring(separator + 1).trim())
+        if (handle.isBlank()) return null
+
+        val (type, label) = extractImTypeAndLabel(params)
+        return CustomImEntry(handle = handle, type = type, label = label)
+    }
+
+    private fun parseImppEntry(line: String): CustomImEntry? {
+        val separator = line.indexOf(':')
+        if (separator < 0) return null
+
+        val params = line.substring(4, separator)
+        val rawValue = unescapeVCardValue(line.substring(separator + 1).trim())
+        val scheme = rawValue.substringBefore(':', "").lowercase()
+        if (scheme != "xmpp" && scheme != "jabber") return null
+
+        val handle = rawValue.substringAfter(':', "").trim()
+        if (handle.isBlank()) return null
+
+        val (type, label) = extractImTypeAndLabel(params)
+        return CustomImEntry(handle = handle, type = type, label = label)
     }
 
     private fun unfoldVCard(rawVCard: String): List<String> {
