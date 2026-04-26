@@ -4,6 +4,7 @@ import android.accounts.Account
 import android.content.*
 import android.os.Bundle
 import android.provider.ContactsContract
+import android.provider.ContactsContract.CommonDataKinds.Im
 import android.provider.ContactsContract.CommonDataKinds.Phone
 import android.util.Log
 import at.bitfire.dav4jvm.DavAddressBook
@@ -13,9 +14,11 @@ import at.bitfire.dav4jvm.exception.HttpException
 import at.bitfire.dav4jvm.property.*
 import at.bitfire.vcard4android.Contact
 import at.bitfire.vcard4android.GroupMethod
+import at.bitfire.vcard4android.LabeledProperty
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody.Companion.toRequestBody
+import ezvcard.property.Impp
 import ezvcard.VCardVersion
 import java.io.ByteArrayOutputStream
 import java.io.StringReader
@@ -30,12 +33,22 @@ class ContactsSyncManager(
     private val extras: Bundle
 ) {
     private data class CustomPhoneLabel(val number: String, val label: String)
+    private data class CustomImEntry(val handle: String, val type: Int, val label: String?)
+    private data class ExistingImRow(
+        val dataId: Long,
+        val handle: String,
+        val type: Int,
+        val label: String?,
+        val protocol: Int?,
+        val customProtocol: String?
+    )
 
     companion object {
         private const val TAG = "ContactsSyncManager"
         private const val SYNC_STATE_CTAG = "ctag"
         private const val SYNC_STATE_SYNC_TOKEN = "sync_token"
         private const val CHUNK_SIZE = 15
+        private const val LEGACY_JABBER_PROPERTY = "X-JABBER"
         private val STANDARD_PHONE_TYPES = setOf(
             "HOME", "WORK", "CELL", "VOICE", "FAX", "PAGER", "CAR", "ISDN",
             "PREF", "MSG", "BBS", "MODEM", "PCS", "VIDEO", "TEXTPHONE", "TEXTPHONE"
@@ -84,11 +97,11 @@ class ContactsSyncManager(
 
     private fun uploadContact(lc: LocalContactInfo) {
         val contact = readContactFromProvider(lc.rawContactId) ?: return
-        val vcardBytes = ByteArrayOutputStream().also { contact.writeVCard(VCardVersion.V4_0, it) }.toByteArray()
+        val vCard = buildUploadVCard(contact, lc.rawContactId)
         val fileName = lc.remoteFileName ?: "${UUID.randomUUID()}.vcf"
         val url = collectionUrl.toHttpUrl().newBuilder().addPathSegment(fileName).build()
         var newETag: String? = null
-        val body = vcardBytes.toRequestBody()
+        val body = vCard.toByteArray(Charsets.UTF_8).toRequestBody()
         davAddressBook.put(body, ifETag = lc.eTag, ifNoneMatch = lc.remoteFileName == null, callback = { resp ->
             newETag = resp.header("ETag")?.trim('\"')
         })
@@ -245,6 +258,70 @@ class ContactsSyncManager(
             ac.id!!
         }
         applyCustomPhoneLabels(rawContactId, extractCustomPhoneLabels(rawVCard))
+        applyCustomImEntries(rawContactId, extractCustomImEntries(rawVCard))
+    }
+
+    private fun buildUploadVCard(contact: Contact, rawContactId: Long): String {
+        val jabberEntries = queryJabberImEntries(rawContactId)
+        if (jabberEntries.isNotEmpty()) {
+            mergeJabberEntriesIntoContact(contact, jabberEntries)
+        }
+
+        val baseVCard = ByteArrayOutputStream()
+            .also { contact.writeVCard(VCardVersion.V4_0, it) }
+            .toString(Charsets.UTF_8.name())
+
+        return appendLegacyJabberProperties(baseVCard, jabberEntries)
+    }
+
+    private fun mergeJabberEntriesIntoContact(contact: Contact, jabberEntries: List<CustomImEntry>) {
+        val existingHandles = contact.impps
+            .asSequence()
+            .mapNotNull { labeledProperty ->
+                val property = labeledProperty.property as? Impp ?: return@mapNotNull null
+                val protocol = property.protocol?.lowercase() ?: return@mapNotNull null
+                if (protocol != "xmpp" && protocol != "jabber") return@mapNotNull null
+                normalizeImHandle(property.handle)
+            }
+            .toSet()
+
+        jabberEntries.forEach { entry ->
+            if (normalizeImHandle(entry.handle) in existingHandles) return@forEach
+
+            val property = Impp.xmpp(entry.handle)
+            when (entry.type) {
+                Im.TYPE_HOME -> property.types += ezvcard.parameter.ImppType.HOME
+                Im.TYPE_WORK -> property.types += ezvcard.parameter.ImppType.WORK
+            }
+            contact.impps.add(LabeledProperty(property, entry.label))
+        }
+    }
+
+    private fun appendLegacyJabberProperties(baseVCard: String, jabberEntries: List<CustomImEntry>): String {
+        if (jabberEntries.isEmpty()) return baseVCard
+        if (unfoldVCard(baseVCard).any { it.startsWith("$LEGACY_JABBER_PROPERTY:", ignoreCase = true) || it.startsWith("$LEGACY_JABBER_PROPERTY;", ignoreCase = true) }) {
+            return baseVCard
+        }
+
+        val customLines = jabberEntries.joinToString(separator = "\r\n") { entry ->
+            buildString {
+                append(LEGACY_JABBER_PROPERTY)
+                when (entry.type) {
+                    Im.TYPE_HOME -> append(";TYPE=HOME")
+                    Im.TYPE_WORK -> append(";TYPE=WORK")
+                    Im.TYPE_CUSTOM -> entry.label?.takeIf { it.isNotBlank() }?.let { append(";TYPE=").append(escapeVCardParam(it)) }
+                }
+                append(':')
+                append(escapeVCardValue(entry.handle))
+            }
+        }
+
+        val marker = "\r\nEND:VCARD"
+        return if (baseVCard.contains(marker, ignoreCase = true)) {
+            baseVCard.replace(marker, "\r\n$customLines$marker", ignoreCase = true)
+        } else {
+            "$baseVCard\r\n$customLines"
+        }
     }
 
     private fun applyCustomPhoneLabels(rawContactId: Long, customPhoneLabels: List<CustomPhoneLabel>) {
@@ -285,6 +362,53 @@ class ContactsSyncManager(
         }
     }
 
+    private fun applyCustomImEntries(rawContactId: Long, customImEntries: List<CustomImEntry>) {
+        val existingRows = queryExistingImRows(rawContactId)
+        val managedRows = existingRows.filter { isJabberRow(it.protocol, it.customProtocol) }.toMutableList()
+        val targetKeys = customImEntries.map { normalizeImHandle(it.handle) }.toSet()
+        val seenKeys = mutableSetOf<String>()
+
+        customImEntries.forEach { entry ->
+            val normalizedHandle = normalizeImHandle(entry.handle)
+            if (!seenKeys.add(normalizedHandle)) return@forEach
+
+            val matchingRow = existingRows.firstOrNull { normalizeImHandle(it.handle) == normalizedHandle }
+                ?: managedRows.firstOrNull()
+
+            val values = ContentValues().apply {
+                put(Im.DATA, entry.handle)
+                put(Im.TYPE, entry.type)
+                put(Im.LABEL, entry.label)
+                put(Im.PROTOCOL, Im.PROTOCOL_JABBER)
+                put(Im.CUSTOM_PROTOCOL, null as String?)
+            }
+
+            if (matchingRow != null) {
+                provider.update(
+                    ContactsContract.Data.CONTENT_URI,
+                    values,
+                    "${ContactsContract.Data._ID}=?",
+                    arrayOf(matchingRow.dataId.toString())
+                )
+                managedRows.removeAll { it.dataId == matchingRow.dataId }
+            } else {
+                values.put(ContactsContract.Data.RAW_CONTACT_ID, rawContactId)
+                values.put(ContactsContract.Data.MIMETYPE, Im.CONTENT_ITEM_TYPE)
+                provider.insert(ContactsContract.Data.CONTENT_URI, values)
+            }
+        }
+
+        managedRows
+            .filter { normalizeImHandle(it.handle) !in targetKeys }
+            .forEach { row ->
+                provider.delete(
+                    ContactsContract.Data.CONTENT_URI,
+                    "${ContactsContract.Data._ID}=?",
+                    arrayOf(row.dataId.toString())
+                )
+            }
+    }
+
     private fun extractCustomPhoneLabels(rawVCard: String): List<CustomPhoneLabel> {
         return unfoldVCard(rawVCard).mapNotNull { line ->
             if (!line.startsWith("TEL", ignoreCase = true)) return@mapNotNull null
@@ -298,6 +422,22 @@ class ContactsSyncManager(
             if (number.isEmpty()) return@mapNotNull null
 
             CustomPhoneLabel(number = number, label = label)
+        }
+    }
+
+    private fun extractCustomImEntries(rawVCard: String): List<CustomImEntry> {
+        return unfoldVCard(rawVCard).mapNotNull { line ->
+            if (!line.startsWith(LEGACY_JABBER_PROPERTY, ignoreCase = true)) return@mapNotNull null
+
+            val separator = line.indexOf(':')
+            if (separator < 0) return@mapNotNull null
+
+            val params = line.substring(LEGACY_JABBER_PROPERTY.length, separator)
+            val handle = unescapeVCardValue(line.substring(separator + 1).trim())
+            if (handle.isBlank()) return@mapNotNull null
+
+            val (type, label) = extractImTypeAndLabel(params)
+            CustomImEntry(handle = handle, type = type, label = label)
         }
     }
 
@@ -333,8 +473,112 @@ class ContactsSyncManager(
         return customType.removePrefix("X-")
     }
 
+    private fun extractImTypeAndLabel(params: String): Pair<Int, String?> {
+        if (params.isBlank()) return Im.TYPE_OTHER to null
+
+        val values = params
+            .trimStart(';')
+            .split(';')
+            .filter { it.isNotBlank() }
+            .map { token ->
+                val key = token.substringBefore('=', "").trim()
+                val value = token.substringAfter('=', "").trim()
+                key.uppercase() to value
+            }
+            .filter { (key, value) -> key == "TYPE" && value.isNotBlank() }
+            .flatMap { (_, value) -> value.split(',') }
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+
+        val work = values.firstOrNull { it.equals("WORK", ignoreCase = true) }
+        if (work != null) return Im.TYPE_WORK to null
+
+        val home = values.firstOrNull { it.equals("HOME", ignoreCase = true) }
+        if (home != null) return Im.TYPE_HOME to null
+
+        val custom = values.firstOrNull()
+        return if (custom != null) Im.TYPE_CUSTOM to unescapeVCardValue(custom) else Im.TYPE_OTHER to null
+    }
+
     private fun normalizePhoneNumber(number: String): String =
         number.filterNot { it.isWhitespace() || it == '-' || it == '(' || it == ')' }
+
+    private fun normalizeImHandle(handle: String): String =
+        handle.trim().lowercase()
+
+    private fun queryExistingImRows(rawContactId: Long): List<ExistingImRow> {
+        val rows = mutableListOf<ExistingImRow>()
+        provider.query(
+            ContactsContract.Data.CONTENT_URI,
+            arrayOf(
+                ContactsContract.Data._ID,
+                Im.DATA,
+                Im.TYPE,
+                Im.LABEL,
+                Im.PROTOCOL,
+                Im.CUSTOM_PROTOCOL
+            ),
+            "${ContactsContract.Data.RAW_CONTACT_ID}=? AND ${ContactsContract.Data.MIMETYPE}=?",
+            arrayOf(rawContactId.toString(), Im.CONTENT_ITEM_TYPE),
+            null
+        )?.use { cursor ->
+            while (cursor.moveToNext()) {
+                rows += ExistingImRow(
+                    dataId = cursor.getLong(0),
+                    handle = cursor.getString(1) ?: "",
+                    type = cursor.getInt(2),
+                    label = cursor.getString(3),
+                    protocol = cursor.getInt(4),
+                    customProtocol = cursor.getString(5)
+                )
+            }
+        }
+        return rows
+    }
+
+    private fun queryJabberImEntries(rawContactId: Long): List<CustomImEntry> {
+        return queryExistingImRows(rawContactId)
+            .asSequence()
+            .filter { row -> isJabberRow(row.protocol, row.customProtocol) }
+            .map { row ->
+                CustomImEntry(
+                    handle = row.handle,
+                    type = row.type,
+                    label = row.label
+                )
+            }
+            .filter { entry -> entry.handle.isNotBlank() }
+            .distinctBy { normalizeImHandle(it.handle) }
+            .toList()
+    }
+
+    private fun isJabberRow(protocol: Int?, customProtocol: String?): Boolean {
+        if (protocol == Im.PROTOCOL_JABBER) return true
+        return customProtocol?.equals("xmpp", ignoreCase = true) == true ||
+            customProtocol?.equals("jabber", ignoreCase = true) == true
+    }
+
+    private fun escapeVCardValue(value: String): String =
+        value
+            .replace("\\", "\\\\")
+            .replace("\n", "\\n")
+            .replace(",", "\\,")
+            .replace(";", "\\;")
+
+    private fun escapeVCardParam(value: String): String =
+        value
+            .replace("\\", "\\\\")
+            .replace("\"", "\\\"")
+            .replace(";", "\\;")
+            .replace(",", "\\,")
+
+    private fun unescapeVCardValue(value: String): String =
+        value
+            .replace("\\n", "\n", ignoreCase = true)
+            .replace("\\N", "\n")
+            .replace("\\,", ",")
+            .replace("\\;", ";")
+            .replace("\\\\", "\\")
 
     private fun updateLocalContactMeta(rawContactId: Long, remoteFileName: String?, eTag: String?, dirty: Boolean, deleted: Boolean) {
         val values = ContentValues().apply {
