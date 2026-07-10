@@ -9,18 +9,13 @@ import android.provider.ContactsContract.CommonDataKinds.Phone
 import android.util.Log
 import at.bitfire.dav4jvm.DavAddressBook
 import at.bitfire.dav4jvm.Response
-import at.bitfire.dav4jvm.exception.ConflictException
 import at.bitfire.dav4jvm.exception.HttpException
 import at.bitfire.dav4jvm.property.*
 import at.bitfire.vcard4android.Contact
 import at.bitfire.vcard4android.GroupMethod
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
-import okhttp3.RequestBody.Companion.toRequestBody
-import ezvcard.VCardVersion
-import java.io.ByteArrayOutputStream
 import java.io.StringReader
-import java.util.UUID
 
 class ContactsSyncManager(
     private val context: Context,
@@ -64,7 +59,6 @@ class ContactsSyncManager(
             localSyncState = SyncState()
         }
         try {
-            uploadDirty()
             if (!forceResync && localSyncState.syncToken != null) syncWithToken()
             else syncWithPropfind()
             saveSyncState(localSyncState)
@@ -76,44 +70,6 @@ class ContactsSyncManager(
             Log.e(TAG, "Sync failed", e)
             throw e
         }
-    }
-
-    // ── Upload dirty ─────────────────────────────────────────────────────────
-
-    private fun uploadDirty() {
-        val dirtyContacts = queryDirtyContacts()
-        Log.d(TAG, "Dirty contacts: ${dirtyContacts.size}")
-        for (lc in dirtyContacts) {
-            try {
-                if (lc.deleted) deleteRemote(lc) else uploadContact(lc)
-            } catch (e: ConflictException) {
-                Log.w(TAG, "Conflict on ${lc.remoteFileName}, server wins")
-                clearLocalDirtyFlag(lc.rawContactId)
-            }
-        }
-    }
-
-    private fun uploadContact(lc: LocalContactInfo) {
-        val contact = readContactFromProvider(lc.rawContactId) ?: return
-        val vCard = buildUploadVCard(contact, lc.rawContactId)
-        val fileName = lc.remoteFileName ?: "${UUID.randomUUID()}.vcf"
-        val url = collectionUrl.toHttpUrl().newBuilder().addPathSegment(fileName).build()
-        var newETag: String? = null
-        val body = vCard.toByteArray(Charsets.UTF_8).toRequestBody()
-        davAddressBook.put(body, ifETag = lc.eTag, ifNoneMatch = lc.remoteFileName == null, callback = { resp ->
-            newETag = resp.header("ETag")?.trim('\"')
-        })
-        updateLocalContactMeta(lc.rawContactId, url.pathSegments.last(), newETag ?: lc.eTag, dirty = false, deleted = false)
-    }
-
-    private fun deleteRemote(lc: LocalContactInfo) {
-        if (lc.remoteFileName == null) { deleteLocalContact(lc.rawContactId); return }
-        try {
-            davAddressBook.delete(ifETag = lc.eTag) { /* nothing to do */ }
-        } catch (e: HttpException) {
-            if (e.code != 404) throw e
-        }
-        deleteLocalContact(lc.rawContactId)
     }
 
     // ── Sync with collection-sync token ──────────────────────────────────────
@@ -184,33 +140,6 @@ class ContactsSyncManager(
 
     // ── Provider helpers ──────────────────────────────────────────────────────
 
-    private data class LocalContactInfo(
-        val rawContactId: Long,
-        val remoteFileName: String?,
-        val eTag: String?,
-        val dirty: Boolean,
-        val deleted: Boolean
-    )
-
-    private fun queryDirtyContacts(): List<LocalContactInfo> {
-        val results = mutableListOf<LocalContactInfo>()
-        provider.query(
-            ContactsContract.RawContacts.CONTENT_URI,
-            arrayOf(ContactsContract.RawContacts._ID, ContactsContract.RawContacts.DIRTY,
-                ContactsContract.RawContacts.DELETED, ContactsContract.RawContacts.SOURCE_ID,
-                ContactsContract.RawContacts.SYNC1),
-            "${ContactsContract.RawContacts.ACCOUNT_TYPE}=? AND ${ContactsContract.RawContacts.ACCOUNT_NAME}=? AND " +
-            "(${ContactsContract.RawContacts.DIRTY}=1 OR ${ContactsContract.RawContacts.DELETED}=1)",
-            arrayOf(account.type, account.name), null
-        )?.use { cursor ->
-            while (cursor.moveToNext()) results += LocalContactInfo(
-                rawContactId = cursor.getLong(0), dirty = cursor.getInt(1) != 0,
-                deleted = cursor.getInt(2) != 0, remoteFileName = cursor.getString(3), eTag = cursor.getString(4)
-            )
-        }
-        return results
-    }
-
     private fun getLocalContactEtags(): Map<String, String> {
         val map = mutableMapOf<String, String>()
         provider.query(
@@ -228,12 +157,6 @@ class ContactsSyncManager(
         }
         return map
     }
-
-    private fun readContactFromProvider(rawContactId: Long): Contact? = try {
-        val values = ContentValues().apply { put(ContactsContract.RawContacts._ID, rawContactId) }
-        val ac = at.bitfire.vcard4android.AndroidContact(buildAndroidAddressBook(), values)
-        ac.getContact()
-    } catch (e: Exception) { Log.e(TAG, "Could not read contact $rawContactId", e); null }
 
     private fun applyContactToProvider(contact: Contact, fileName: String, eTag: String?, rawVCard: String) {
         var existingId: Long? = null
@@ -257,42 +180,6 @@ class ContactsSyncManager(
         }
         applyCustomPhoneLabels(rawContactId, extractCustomPhoneLabels(rawVCard))
         applyCustomImEntries(rawContactId, extractCustomImEntries(rawVCard))
-    }
-
-    private fun buildUploadVCard(contact: Contact, rawContactId: Long): String {
-        val jabberEntries = queryJabberImEntries(rawContactId)
-        val baseVCard = ByteArrayOutputStream()
-            .also { contact.writeVCard(VCardVersion.V4_0, it) }
-            .toString(Charsets.UTF_8.name())
-
-        return appendLegacyJabberProperties(baseVCard, jabberEntries)
-    }
-
-    private fun appendLegacyJabberProperties(baseVCard: String, jabberEntries: List<CustomImEntry>): String {
-        if (jabberEntries.isEmpty()) return baseVCard
-        if (unfoldVCard(baseVCard).any { it.startsWith("$LEGACY_JABBER_PROPERTY:", ignoreCase = true) || it.startsWith("$LEGACY_JABBER_PROPERTY;", ignoreCase = true) }) {
-            return baseVCard
-        }
-
-        val customLines = jabberEntries.joinToString(separator = "\r\n") { entry ->
-            buildString {
-                append(LEGACY_JABBER_PROPERTY)
-                when (entry.type) {
-                    Im.TYPE_HOME -> append(";TYPE=HOME")
-                    Im.TYPE_WORK -> append(";TYPE=WORK")
-                    Im.TYPE_CUSTOM -> entry.label?.takeIf { it.isNotBlank() }?.let { append(";TYPE=").append(escapeVCardParam(it)) }
-                }
-                append(':')
-                append(escapeVCardValue(entry.handle))
-            }
-        }
-
-        val marker = "\r\nEND:VCARD"
-        return if (baseVCard.contains(marker, ignoreCase = true)) {
-            baseVCard.replace(marker, "\r\n$customLines$marker", ignoreCase = true)
-        } else {
-            "$baseVCard\r\n$customLines"
-        }
     }
 
     private fun applyCustomPhoneLabels(rawContactId: Long, customPhoneLabels: List<CustomPhoneLabel>) {
@@ -533,41 +420,11 @@ class ContactsSyncManager(
         return rows
     }
 
-    private fun queryJabberImEntries(rawContactId: Long): List<CustomImEntry> {
-        return queryExistingImRows(rawContactId)
-            .asSequence()
-            .filter { row -> isJabberRow(row.protocol, row.customProtocol) }
-            .map { row ->
-                CustomImEntry(
-                    handle = row.handle,
-                    type = row.type,
-                    label = row.label
-                )
-            }
-            .filter { entry -> entry.handle.isNotBlank() }
-            .distinctBy { normalizeImHandle(it.handle) }
-            .toList()
-    }
-
     private fun isJabberRow(protocol: Int?, customProtocol: String?): Boolean {
         if (protocol == Im.PROTOCOL_JABBER) return true
         return customProtocol?.equals("xmpp", ignoreCase = true) == true ||
             customProtocol?.equals("jabber", ignoreCase = true) == true
     }
-
-    private fun escapeVCardValue(value: String): String =
-        value
-            .replace("\\", "\\\\")
-            .replace("\n", "\\n")
-            .replace(",", "\\,")
-            .replace(";", "\\;")
-
-    private fun escapeVCardParam(value: String): String =
-        value
-            .replace("\\", "\\\\")
-            .replace("\"", "\\\"")
-            .replace(";", "\\;")
-            .replace(",", "\\,")
 
     private fun unescapeVCardValue(value: String): String =
         value
@@ -585,17 +442,6 @@ class ContactsSyncManager(
             if (deleted) put(ContactsContract.RawContacts.DELETED, 1)
         }
         provider.update(ContactsContract.RawContacts.CONTENT_URI, values,
-            "${ContactsContract.RawContacts._ID}=?", arrayOf(rawContactId.toString()))
-    }
-
-    private fun clearLocalDirtyFlag(rawContactId: Long) {
-        provider.update(ContactsContract.RawContacts.CONTENT_URI,
-            ContentValues().apply { put(ContactsContract.RawContacts.DIRTY, 0) },
-            "${ContactsContract.RawContacts._ID}=?", arrayOf(rawContactId.toString()))
-    }
-
-    private fun deleteLocalContact(rawContactId: Long) {
-        provider.delete(ContactsContract.RawContacts.CONTENT_URI,
             "${ContactsContract.RawContacts._ID}=?", arrayOf(rawContactId.toString()))
     }
 
