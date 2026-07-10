@@ -36,7 +36,9 @@ class MainViewModel @Inject constructor(
 
     fun syncNow(account: Account) {
         viewModelScope.launch(Dispatchers.IO) {
-            val result = accountRepository.syncNowDirect(account, forceResync = true)
+            // A normal manual sync should use the saved sync token/ETags just like a
+            // scheduled sync. Force resync is reserved for recovery or setup flows.
+            val result = accountRepository.syncNowDirect(account)
             _syncMessage.value = result.fold(
                 onSuccess = { "Synced $it address book(s) for ${account.name}." },
                 onFailure = { "Sync failed for ${account.name}: ${it.message ?: "Unknown error"}" }

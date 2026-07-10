@@ -76,13 +76,13 @@ class ContactsSyncManager(
 
     private fun syncWithToken() {
         Log.d(TAG, "Sync-token: ${localSyncState.syncToken}")
-        val changedHrefs = mutableListOf<String>()
+        val changedHrefs = mutableListOf<Pair<String, String?>>()
         val deletedHrefs = mutableListOf<String>()
         try {
             davAddressBook.reportChanges(localSyncState.syncToken!!, false, null, GetETag.NAME) { response, _ ->
                 val href = response.href.toString()
                 if (response.status?.code == 404 || response[GetETag::class.java] == null) deletedHrefs += href
-                else changedHrefs += href
+                else changedHrefs += href to response[GetETag::class.java]?.eTag
             }
         } catch (e: HttpException) {
             if (e.code == 410) {
@@ -93,7 +93,16 @@ class ContactsSyncManager(
             throw e
         }
         deletedHrefs.forEach { deleteLocalContactByRemoteFileName(it.substringAfterLast('/')) }
-        downloadAndApplyContacts(changedHrefs)
+        val localEtags = getLocalContactEtags()
+        val contactsToDownload = changedHrefs
+            .filter { (href, eTag) ->
+                val fileName = href.toHttpUrl().pathSegments.lastOrNull { it.isNotEmpty() }
+                // Some servers report an unchanged resource in a sync response. Do
+                // not rewrite its contact card when its stored ETag already matches.
+                eTag == null || fileName == null || localEtags[fileName] != eTag
+            }
+            .map { it.first }
+        downloadAndApplyContacts(contactsToDownload)
         refreshSyncToken()
     }
 
@@ -175,9 +184,11 @@ class ContactsSyncManager(
         } else {
             val ac = at.bitfire.vcard4android.AndroidContact(ab, contact, fileName, eTag)
             ac.add()
-            updateLocalContactMeta(ac.id!!, fileName, eTag, dirty = false, deleted = false)
             ac.id!!
         }
+        // AndroidContact.update() does not update our CardDAV metadata. Persist the
+        // new ETag for both inserts and updates so future syncs can skip this card.
+        updateLocalContactMeta(rawContactId, fileName, eTag, dirty = false, deleted = false)
         applyCustomPhoneLabels(rawContactId, extractCustomPhoneLabels(rawVCard))
         applyCustomImEntries(rawContactId, extractCustomImEntries(rawVCard))
     }
