@@ -12,7 +12,7 @@
         <androidx.appcompat.widget.Toolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
+            android:layout_height="match_parent"
             app:title="@string/main_title" />
 
     </com.google.android.material.appbar.AppBarLayout>
@@ -38,13 +38,14 @@
         android:id="@+id/fab_add_account"
         android:layout_width="88dp"
         android:layout_height="88dp"
-        app:fabCustomSize="88dp"
-        app:backgroundTint="#4dc3ff"
-        android:scaleType="center"
         android:layout_gravity="bottom|end"
         android:layout_margin="16dp"
         android:adjustViewBounds="false"
+        android:contentDescription="@string/main_add_account"
+        android:scaleType="center"
         android:src="@android:drawable/ic_input_add"
-        android:contentDescription="@string/main_add_account" />
+        app:backgroundTint="#4dc3ff"
+        app:fabCustomSize="88dp"
+        app:maxImageSize="75dp" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
