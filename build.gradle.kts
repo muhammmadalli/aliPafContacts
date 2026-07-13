@@ -3,10 +3,3 @@ plugins {
     alias(libs.plugins.hilt) apply false
     alias(libs.plugins.ksp) apply false
 }
-allprojects {
-    configurations.all {
-        resolutionStrategy {
-            cacheChangingModulesFor(192, java.util.concurrent.TimeUnit.HOURS)
-        }
-    }
-}

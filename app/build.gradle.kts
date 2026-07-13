@@ -1,7 +1,15 @@
+import java.util.concurrent.TimeUnit
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
+}
+
+configurations.configureEach {
+    resolutionStrategy {
+        cacheChangingModulesFor(192, TimeUnit.HOURS)
+    }
 }
 
 android {
