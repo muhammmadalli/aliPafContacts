@@ -7,4 +7,4 @@
     android:accountType="ali.paf.contacts.address_book"
     android:icon="@mipmap/ic_launcher"
     android:smallIcon="@mipmap/ic_launcher"
-    android:label="@string/account_type_address_book" />
+    android:label="@string/app_name" />

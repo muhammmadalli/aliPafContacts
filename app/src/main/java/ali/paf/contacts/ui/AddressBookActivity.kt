@@ -66,7 +66,7 @@ class AddressBookActivity : AppCompatActivity() {
                 selected.forEach { ab ->
                     accountRepository.createOrUpdateAddressBook(mainAccount, ab.url, ab.displayName)
                 }
-                accountRepository.requestSync(mainAccount)
+                accountRepository.syncNowDirect(mainAccount, forceResync = true)
                 withContext(Dispatchers.Main) { finish() }
             }
         }
