@@ -1,7 +1,7 @@
 [versions]
 agp = "9.2.1"
 kotlin = "2.1.0"
-ksp = "2.3.2"
+ksp = "2.3.10"
 hilt = "2.59.2"
 coroutines = "1.8.1"
 okhttp = "4.12.0"
