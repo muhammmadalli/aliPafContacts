@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "ali.paf.contacts"
-    compileSdk = 34
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "ali.paf.contacts"
@@ -39,6 +39,7 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
         isCoreLibraryDesugaringEnabled = true
     }
+    buildToolsVersion = "36.0.0"
 }
 
 dependencies {
