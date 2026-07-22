@@ -35,6 +35,11 @@
     <!-- Battery Optimization -->
     <string name="battery_opt_title">Background Sync</string>
     <string name="battery_opt_message">To keep your contacts synced reliably, the app needs to run in the background without battery restrictions.</string>
-    <string name="battery_opt_positive">Allow</string>
+    <string name="battery_opt_positive">Allow background sync</string>
     <string name="battery_opt_negative">Not now</string>
+
+    <!-- Unused App Restrictions / Hibernation -->
+    <string name="unused_app_restrictions_title">Unused App Settings</string>
+    <string name="unused_app_restrictions_message">Android may automatically reset permissions if it isn\'t used for long time, causing background synchronization to fail.\n\nTo ensure reliable sync, please turn OFF\n<b>Manage app if unused</b>\nin app settings.</string>
+    <string name="unused_app_restrictions_positive">Go to App Settings</string>
 </resources>

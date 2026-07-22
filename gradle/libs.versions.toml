@@ -9,6 +9,7 @@ okhttp = "4.12.0"
 dav4jvm = "2.2.1"
 vcard4android = "7dbab26986"
 desugar-jdk-libs = "2.1.5"
+guava-listenablefuture = "1.0"
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
@@ -36,3 +37,4 @@ okhttp-logging = { module = "com.squareup.okhttp3:logging-interceptor", version.
 dav4jvm = { module = "com.github.bitfireAT:dav4jvm", version.ref = "dav4jvm" }
 vcard4android = { module = "com.github.bitfireAT:vcard4android", version.ref = "vcard4android" }
 desugar_jdk_libs = { module = "com.android.tools:desugar_jdk_libs", version.ref = "desugar-jdk-libs" }
+guava-listenablefuture = { module = "com.google.guava:listenablefuture", version.ref = "guava-listenablefuture" }

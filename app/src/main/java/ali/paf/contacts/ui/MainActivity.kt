@@ -15,6 +15,9 @@ import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.content.IntentCompat
+import androidx.core.content.PackageManagerCompat
+import androidx.core.content.UnusedAppRestrictionsConstants
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import ali.paf.contacts.R
@@ -57,6 +60,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         checkBatteryOptimizations()
+        checkUnusedAppRestrictions()
 
         adapter = AccountsAdapter(
             onSyncClick = { viewModel.syncNow(it) },
@@ -102,6 +106,29 @@ class MainActivity : AppCompatActivity() {
                 .setNegativeButton(R.string.battery_opt_negative, null)
                 .show()
         }
+    }
+
+    private fun checkUnusedAppRestrictions() {
+        val future = PackageManagerCompat.getUnusedAppRestrictionsStatus(this)
+        future.addListener({
+            val status = try { future.get() } catch (_: Exception) { UnusedAppRestrictionsConstants.ERROR }
+            if (status == UnusedAppRestrictionsConstants.API_30 ||
+                status == UnusedAppRestrictionsConstants.API_31 ||
+                status == UnusedAppRestrictionsConstants.API_30_BACKPORT) {
+
+                runOnUiThread {
+                    AlertDialog.Builder(this)
+                        .setTitle(R.string.unused_app_restrictions_title)
+                        .setMessage(R.string.unused_app_restrictions_message)
+                        .setPositiveButton(R.string.unused_app_restrictions_positive) { _, _ ->
+                            val intent = IntentCompat.createManageUnusedAppRestrictionsIntent(this, packageName)
+                            startActivity(intent)
+                        }
+                        .setNegativeButton(R.string.battery_opt_negative, null)
+                        .show()
+                }
+            }
+        }, ContextCompat.getMainExecutor(this))
     }
 
     private fun confirmRemove(account: Account) {

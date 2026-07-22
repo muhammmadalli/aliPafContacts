@@ -57,6 +57,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel)
     implementation(libs.androidx.lifecycle.runtime)
     implementation(libs.material)
+    implementation(libs.guava.listenablefuture)
 
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
