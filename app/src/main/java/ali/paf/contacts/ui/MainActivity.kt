@@ -103,7 +103,7 @@ class MainActivity : AppCompatActivity() {
                     }
                     startActivity(intent)
                 }
-                .setNegativeButton(R.string.battery_opt_negative, null)
+            //    .setNegativeButton(R.string.battery_opt_negative, null)     //disabled negative button
                 .show()
         }
     }
@@ -124,7 +124,7 @@ class MainActivity : AppCompatActivity() {
                             val intent = IntentCompat.createManageUnusedAppRestrictionsIntent(this, packageName)
                             startActivity(intent)
                         }
-                        .setNegativeButton(R.string.battery_opt_negative, null)
+                    //    .setNegativeButton(R.string.battery_opt_negative, null)      //disabled negative button
                         .show()
                 }
             }
