@@ -97,6 +97,7 @@ class MainActivity : AppCompatActivity() {
             AlertDialog.Builder(this)
                 .setTitle(R.string.battery_opt_title)
                 .setMessage(R.string.battery_opt_message)
+                .setCancelable(false)
                 .setPositiveButton(R.string.battery_opt_positive) { _, _ ->
                     val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
                         data = Uri.parse("package:$packageName")
@@ -120,6 +121,7 @@ class MainActivity : AppCompatActivity() {
                     AlertDialog.Builder(this)
                         .setTitle(R.string.unused_app_restrictions_title)
                         .setMessage(R.string.unused_app_restrictions_message)
+                        .setCancelable(false)
                         .setPositiveButton(R.string.unused_app_restrictions_positive) { _, _ ->
                             val intent = IntentCompat.createManageUnusedAppRestrictionsIntent(this, packageName)
                             startActivity(intent)
