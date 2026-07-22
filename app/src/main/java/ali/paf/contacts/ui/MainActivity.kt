@@ -3,8 +3,12 @@ package ali.paf.contacts.ui
 import android.Manifest
 import android.accounts.Account
 import android.accounts.AccountManager
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Bundle
+import android.os.PowerManager
+import android.provider.Settings
 import android.view.View
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
@@ -52,6 +56,8 @@ class MainActivity : AppCompatActivity() {
             ))
         }
 
+        checkBatteryOptimizations()
+
         adapter = AccountsAdapter(
             onSyncClick = { viewModel.syncNow(it) },
             onRemoveClick = { confirmRemove(it) }
@@ -80,6 +86,23 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onResume() { super.onResume(); viewModel.refresh() }
+
+    private fun checkBatteryOptimizations() {
+        val pm = getSystemService(POWER_SERVICE) as PowerManager
+        if (!pm.isIgnoringBatteryOptimizations(packageName)) {
+            AlertDialog.Builder(this)
+                .setTitle(R.string.battery_opt_title)
+                .setMessage(R.string.battery_opt_message)
+                .setPositiveButton(R.string.battery_opt_positive) { _, _ ->
+                    val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                        data = Uri.parse("package:$packageName")
+                    }
+                    startActivity(intent)
+                }
+                .setNegativeButton(R.string.battery_opt_negative, null)
+                .show()
+        }
+    }
 
     private fun confirmRemove(account: Account) {
         AlertDialog.Builder(this)

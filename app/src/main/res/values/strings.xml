@@ -31,4 +31,10 @@
     <string name="notification_channel_sync">Sync status</string>
     <string name="notification_sync_error_title">Sync error</string>
     <string name="notification_sync_error_text">Could not sync %1$s</string>
+
+    <!-- Battery Optimization -->
+    <string name="battery_opt_title">Background Sync</string>
+    <string name="battery_opt_message">To keep your contacts synced reliably, the app needs to run in the background without battery restrictions.</string>
+    <string name="battery_opt_positive">Allow</string>
+    <string name="battery_opt_negative">Not now</string>
 </resources>
