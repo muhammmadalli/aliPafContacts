@@ -40,6 +40,6 @@
 
     <!-- Unused App Restrictions / Hibernation -->
     <string name="unused_app_restrictions_title">Unused App Settings</string>
-    <string name="unused_app_restrictions_message">Android may automatically reset permissions if it isn\'t used for long time, causing background synchronization to fail.\n\nTo ensure reliable sync, please <b>TURN OFF\nManage app if unused</b>\nin app settings.</string>
+    <string name="unused_app_restrictions_message">Android may automatically reset app permissions if it isn\'t used for long time, causing background synchronization to fail.\n\nTo ensure reliable sync, please <b>TURN OFF\nManage app if unused</b>\nin app settings.</string>
     <string name="unused_app_restrictions_positive">Go to App Settings</string>
 </resources>
