@@ -27,6 +27,7 @@ class ContactsSyncManager(
 ) {
     private data class CustomPhoneLabel(val number: String, val label: String)
     private data class CustomImEntry(val handle: String, val type: Int, val label: String?)
+    private data class LocalContactMeta(val eTag: String, val dirty: Boolean)
     private data class ExistingImRow(
         val dataId: Long,
         val handle: String,
@@ -93,15 +94,26 @@ class ContactsSyncManager(
             throw e
         }
         deletedHrefs.forEach { deleteLocalContactByRemoteFileName(it.substringAfterLast('/')) }
-        val localEtags = getLocalContactEtags()
+        val localMeta = getLocalContactMeta()
         val contactsToDownload = changedHrefs
             .filter { (href, eTag) ->
                 val fileName = href.toHttpUrl().pathSegments.lastOrNull { it.isNotEmpty() }
                 // Some servers report an unchanged resource in a sync response. Do
                 // not rewrite its contact card when its stored ETag already matches.
-                eTag == null || fileName == null || localEtags[fileName] != eTag
+                eTag == null || fileName == null || localMeta[fileName]?.eTag != eTag
             }
             .map { it.first }
+            .toMutableList()
+
+        // Supplement with contacts that have been locally modified or deleted to enforce server state
+        getLocalDirtyOrDeletedContactFileNames().forEach { fileName ->
+            val href = collectionUrl.toHttpUrl().newBuilder().addPathSegment(fileName).build().toString()
+            if (href !in contactsToDownload) {
+                Log.d(TAG, "Locally dirty/deleted contact found: $fileName. Forcing re-sync from server.")
+                contactsToDownload.add(href)
+            }
+        }
+
         downloadAndApplyContacts(contactsToDownload)
         refreshSyncToken()
     }
@@ -117,10 +129,13 @@ class ContactsSyncManager(
             val fileName = response.href.pathSegments.lastOrNull { it.isNotEmpty() } ?: return@propfind
             remoteEtags[fileName] = eTag
         }
-        val localEtags = getLocalContactEtags()
-        val toDownload = remoteEtags.filter { (f, e) -> localEtags[f] != e }
+        val localMeta = getLocalContactMeta()
+        val toDownload = remoteEtags.filter { (f, e) ->
+            val meta = localMeta[f]
+            meta == null || meta.eTag != e || meta.dirty
+        }
             .keys.map { collectionUrl.toHttpUrl().newBuilder().addPathSegment(it).build().toString() }
-        localEtags.keys.filter { it !in remoteEtags.keys }.forEach { deleteLocalContactByRemoteFileName(it) }
+        localMeta.keys.filter { it !in remoteEtags.keys }.forEach { deleteLocalContactByRemoteFileName(it) }
         downloadAndApplyContacts(toDownload)
         refreshCTag()
     }
@@ -149,11 +164,11 @@ class ContactsSyncManager(
 
     // ── Provider helpers ──────────────────────────────────────────────────────
 
-    private fun getLocalContactEtags(): Map<String, String> {
-        val map = mutableMapOf<String, String>()
+    private fun getLocalContactMeta(): Map<String, LocalContactMeta> {
+        val map = mutableMapOf<String, LocalContactMeta>()
         provider.query(
             ContactsContract.RawContacts.CONTENT_URI,
-            arrayOf(ContactsContract.RawContacts.SOURCE_ID, ContactsContract.RawContacts.SYNC1),
+            arrayOf(ContactsContract.RawContacts.SOURCE_ID, ContactsContract.RawContacts.SYNC1, ContactsContract.RawContacts.DIRTY),
             "${ContactsContract.RawContacts.ACCOUNT_TYPE}=? AND ${ContactsContract.RawContacts.ACCOUNT_NAME}=? AND " +
             "${ContactsContract.RawContacts.DELETED}=0",
             arrayOf(account.type, account.name), null
@@ -161,10 +176,27 @@ class ContactsSyncManager(
             while (cursor.moveToNext()) {
                 val f = cursor.getString(0) ?: continue
                 val e = cursor.getString(1) ?: continue
-                map[f] = e
+                val d = cursor.getInt(2) != 0
+                map[f] = LocalContactMeta(e, d)
             }
         }
         return map
+    }
+
+    private fun getLocalDirtyOrDeletedContactFileNames(): Set<String> {
+        val fileNames = mutableSetOf<String>()
+        provider.query(
+            ContactsContract.RawContacts.CONTENT_URI,
+            arrayOf(ContactsContract.RawContacts.SOURCE_ID),
+            "${ContactsContract.RawContacts.ACCOUNT_TYPE}=? AND ${ContactsContract.RawContacts.ACCOUNT_NAME}=? AND " +
+            "(${ContactsContract.RawContacts.DIRTY}=1 OR ${ContactsContract.RawContacts.DELETED}=1)",
+            arrayOf(account.type, account.name), null
+        )?.use { cursor ->
+            while (cursor.moveToNext()) {
+                cursor.getString(0)?.let { fileNames.add(it) }
+            }
+        }
+        return fileNames
     }
 
     private fun applyContactToProvider(contact: Contact, fileName: String, eTag: String?, rawVCard: String) {
@@ -450,7 +482,7 @@ class ContactsSyncManager(
             put(ContactsContract.RawContacts.SOURCE_ID, remoteFileName)
             put(ContactsContract.RawContacts.SYNC1, eTag)
             put(ContactsContract.RawContacts.DIRTY, if (dirty) 1 else 0)
-            if (deleted) put(ContactsContract.RawContacts.DELETED, 1)
+            put(ContactsContract.RawContacts.DELETED, if (deleted) 1 else 0)
         }
         provider.update(ContactsContract.RawContacts.CONTENT_URI, values,
             "${ContactsContract.RawContacts._ID}=?", arrayOf(rawContactId.toString()))
