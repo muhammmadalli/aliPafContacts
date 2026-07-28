@@ -13,4 +13,7 @@ object AccountConfig {
     const val KEY_DISPLAY_NAME = "display_name"
 
     const val SYNC_EXTRA_FORCE_RESYNC = "force_resync"
+
+    const val SYNC_MIN_DAYS = 30
+    const val SYNC_MAX_DAYS = 45
 }

@@ -3,14 +3,21 @@ package ali.paf.contacts.ui
 import android.Manifest
 import android.accounts.Account
 import android.accounts.AccountManager
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Bundle
+import android.os.PowerManager
+import android.provider.Settings
 import android.view.View
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.content.IntentCompat
+import androidx.core.content.PackageManagerCompat
+import androidx.core.content.UnusedAppRestrictionsConstants
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import ali.paf.contacts.R
@@ -52,6 +59,9 @@ class MainActivity : AppCompatActivity() {
             ))
         }
 
+        checkBatteryOptimizations()
+        checkUnusedAppRestrictions()
+
         adapter = AccountsAdapter(
             onSyncClick = { viewModel.syncNow(it) },
             onRemoveClick = { confirmRemove(it) }
@@ -80,6 +90,48 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onResume() { super.onResume(); viewModel.refresh() }
+
+    private fun checkBatteryOptimizations() {
+        val pm = getSystemService(POWER_SERVICE) as PowerManager
+        if (!pm.isIgnoringBatteryOptimizations(packageName)) {
+            AlertDialog.Builder(this)
+                .setTitle(R.string.battery_opt_title)
+                .setMessage(R.string.battery_opt_message)
+                .setCancelable(false)
+                .setPositiveButton(R.string.battery_opt_positive) { _, _ ->
+                    val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                        data = Uri.parse("package:$packageName")
+                    }
+                    startActivity(intent)
+                }
+            //    .setNegativeButton(R.string.battery_opt_negative, null)     //disabled negative button
+                .show()
+        }
+    }
+
+    private fun checkUnusedAppRestrictions() {
+        val future = PackageManagerCompat.getUnusedAppRestrictionsStatus(this)
+        future.addListener({
+            val status = try { future.get() } catch (_: Exception) { UnusedAppRestrictionsConstants.ERROR }
+            if (status == UnusedAppRestrictionsConstants.API_30 ||
+                status == UnusedAppRestrictionsConstants.API_31 ||
+                status == UnusedAppRestrictionsConstants.API_30_BACKPORT) {
+
+                runOnUiThread {
+                    AlertDialog.Builder(this)
+                        .setTitle(R.string.unused_app_restrictions_title)
+                        .setMessage(R.string.unused_app_restrictions_message)
+                        .setCancelable(false)
+                        .setPositiveButton(R.string.unused_app_restrictions_positive) { _, _ ->
+                            val intent = IntentCompat.createManageUnusedAppRestrictionsIntent(this, packageName)
+                            startActivity(intent)
+                        }
+                    //    .setNegativeButton(R.string.battery_opt_negative, null)      //disabled negative button
+                        .show()
+                }
+            }
+        }, ContextCompat.getMainExecutor(this))
+    }
 
     private fun confirmRemove(account: Account) {
         AlertDialog.Builder(this)

@@ -1,0 +1,3 @@
+- [x] Add strings for battery optimization dialog in `strings.xml`
+- [x] Implement battery optimization check and request in `MainActivity.kt`
+- [x] Verify changes

@@ -59,6 +59,8 @@ class ContactsSyncAdapterService : Service() {
             val httpClient = HttpClientFactory.create(context, username, password)
             try {
                 ContactsSyncManager(context, account, provider, httpClient, collectionUrl, extras).performSync()
+                // Reschedule with a new random interval after success
+                ali.paf.contacts.account.AccountRepository(context).scheduleRandomPeriodicSync(account)
             } catch (e: Exception) {
                 Log.e(TAG, "Sync failed for ${account.name}", e)
                 syncResult.stats.numIoExceptions++

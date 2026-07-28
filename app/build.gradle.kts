@@ -20,8 +20,8 @@ android {
         applicationId = "ali.paf.contacts"
         minSdk = 24
         targetSdk = 34
-        versionCode = 100085
-        versionName = "1.0.8"
+        versionCode = 100093
+        versionName = "1.0.9"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         versionNameSuffix = "blueIcon"
@@ -57,6 +57,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel)
     implementation(libs.androidx.lifecycle.runtime)
     implementation(libs.material)
+    implementation(libs.guava.listenablefuture)
 
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)

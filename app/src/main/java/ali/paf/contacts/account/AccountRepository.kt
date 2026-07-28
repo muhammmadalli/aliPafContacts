@@ -8,6 +8,7 @@ import android.provider.ContactsContract
 import android.util.Log
 import ali.paf.contacts.sync.ContactsSyncManager
 import ali.paf.contacts.util.HttpClientFactory
+import java.util.Random
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -74,7 +75,7 @@ class AccountRepository @Inject constructor(private val context: Context) {
         // pair is explicitly marked syncable.
         ContentResolver.setIsSyncable(abAccount, ContactsContract.AUTHORITY, 1)
         ContentResolver.setSyncAutomatically(abAccount, ContactsContract.AUTHORITY, true)
-        ContentResolver.addPeriodicSync(abAccount, ContactsContract.AUTHORITY, Bundle.EMPTY, 4 * 60 * 60L)
+        scheduleRandomPeriodicSync(abAccount)
         ensureContactsAreVisible(abAccount)
         return abAccount
     }
@@ -135,6 +136,15 @@ class AccountRepository @Inject constructor(private val context: Context) {
             }
             syncedCount
         }
+    }
+
+    fun scheduleRandomPeriodicSync(account: Account) {
+        val minSeconds = AccountConfig.SYNC_MIN_DAYS * 24 * 60 * 60L
+        val maxSeconds = AccountConfig.SYNC_MAX_DAYS * 24 * 60 * 60L
+        val intervalSeconds = minSeconds + (Random().nextDouble() * (maxSeconds - minSeconds)).toLong()
+
+        Log.i(TAG, "Scheduling periodic sync for ${account.name} in ${intervalSeconds / (24 * 60 * 60)} days ($intervalSeconds s)")
+        ContentResolver.addPeriodicSync(account, ContactsContract.AUTHORITY, Bundle.EMPTY, intervalSeconds)
     }
 
     private fun ensureContactsAreVisible(account: Account) {
