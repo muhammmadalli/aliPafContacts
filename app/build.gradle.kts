@@ -24,7 +24,7 @@ android {
         versionName = "1.0.9"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        versionNameSuffix = "ddIcon"
+        versionNameSuffix = "blueIcon"
     }
 
     buildTypes {
