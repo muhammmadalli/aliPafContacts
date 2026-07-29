@@ -17,29 +17,22 @@
 
         <TextView
             android:id="@+id/tv_account_name"
-            android:layout_width="232dp"
-            android:layout_height="wrap_content"
+            android:layout_width="0dp"
+            android:layout_height="56dp"
             android:layout_weight="1"
             android:ellipsize="end"
+            android:gravity="center"
             android:maxLines="1"
-            android:textAppearance="?attr/textAppearanceSubtitle1" />
+            android:textAppearance="?attr/textAppearanceSubtitle1"
+            android:textSize="20sp" />
 
         <ImageButton
             android:id="@+id/btn_sync"
-            android:layout_width="105dp"
-            android:layout_height="95dp"
+            android:layout_width="100dp"
+            android:layout_height="100dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/main_sync_now"
             android:src="@android:drawable/ic_popup_sync" />
-
-        <ImageButton
-            android:id="@+id/btn_remove"
-            android:layout_width="92dp"
-            android:layout_height="96dp"
-            android:layout_marginStart="4dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="@string/main_remove_account"
-            android:src="@android:drawable/ic_menu_delete" />
 
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>
