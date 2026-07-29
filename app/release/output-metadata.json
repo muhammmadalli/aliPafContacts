@@ -11,8 +11,8 @@
       "type": "SINGLE",
       "filters": [],
       "attributes": [],
-      "versionCode": 100100,
-      "versionName": "1.0.10rndmInterval30-45days",
+      "versionCode": 100110,
+      "versionName": "1.0.11hardcodedBook",
       "outputFile": "app-release.apk"
     }
   ],

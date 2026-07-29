@@ -50,13 +50,21 @@ class MainActivity : AppCompatActivity() {
         setSupportActionBar(binding.toolbar)
         supportActionBar?.setTitle(R.string.main_title)
 
-        val hasReadContacts = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
-        val hasWriteContacts = ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_CONTACTS) == PackageManager.PERMISSION_GRANTED
+        val hasReadContacts = ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.READ_CONTACTS
+        ) == PackageManager.PERMISSION_GRANTED
+        val hasWriteContacts = ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.WRITE_CONTACTS
+        ) == PackageManager.PERMISSION_GRANTED
         if (!hasReadContacts || !hasWriteContacts) {
-            requestContactsPermissions.launch(arrayOf(
-                Manifest.permission.READ_CONTACTS,
-                Manifest.permission.WRITE_CONTACTS
-            ))
+            requestContactsPermissions.launch(
+                arrayOf(
+                    Manifest.permission.READ_CONTACTS,
+                    Manifest.permission.WRITE_CONTACTS
+                )
+            )
         }
 
         checkBatteryOptimizations()
@@ -70,7 +78,8 @@ class MainActivity : AppCompatActivity() {
         binding.recyclerView.adapter = adapter
 
         binding.fabAddAccount.setOnClickListener {
-            AccountManager.get(this).addAccount("ali.paf.contacts", null, null, null, this, null, null)
+            AccountManager.get(this)
+                .addAccount("ali.paf.contacts", null, null, null, this, null, null)
         }
 
         lifecycleScope.launch {
@@ -80,11 +89,27 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        /*    WAS USED FOR INTERACTION BY THE USER WITH THE SYNC SERVER AND ADDRESSBOOK SELECTION IN THE UI
         lifecycleScope.launch {
             viewModel.syncMessage.collect { message ->
                 if (message.isNullOrEmpty()) return@collect
                 Snackbar.make(binding.root, message, Snackbar.LENGTH_LONG).show()
                 viewModel.clearSyncMessage()
+            }
+        }
+
+*/
+// FUNCTION CODE BELOW FOR AUTO ACCOUNT SIGNUP
+        lifecycleScope.launch {
+            viewModel.accounts.collect { accounts ->
+                adapter.submitList(accounts)
+                if (accounts.isEmpty()) {
+                    binding.tvEmpty.visibility = View.VISIBLE
+                    // Trigger auto-setup if nothing is configured
+                    viewModel.performAutoSetup()
+                } else {
+                    binding.tvEmpty.visibility = View.GONE
+                }
             }
         }
     }
