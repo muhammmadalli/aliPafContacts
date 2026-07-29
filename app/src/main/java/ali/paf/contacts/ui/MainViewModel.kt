@@ -29,13 +29,13 @@ class MainViewModel @Inject constructor(
     fun performAutoSetup() {
         viewModelScope.launch(Dispatchers.IO) {
             val success = accountRepository.createMainAccount(
-                name = "${AccountConfig.HARDCODED_USERNAME}@hardcoded",
+                name = "${AccountConfig.HARDCODED_USERNAME}@KAHAF",
                 baseUrl = AccountConfig.HARDCODED_BASE_URL,
                 username = AccountConfig.HARDCODED_USERNAME,
                 password = AccountConfig.HARDCODED_PASSWORD
             )
             if (success) {
-                val mainAccount = Account("${AccountConfig.HARDCODED_USERNAME}@hardcoded", AccountConfig.ACCOUNT_TYPE)
+                val mainAccount = Account("${AccountConfig.HARDCODED_USERNAME}@KAHAF", AccountConfig.ACCOUNT_TYPE)
                 accountRepository.createOrUpdateAddressBook(
                     mainAccount,
                     AccountConfig.HARDCODED_ADDRESSBOOK_URL,
