@@ -25,7 +25,8 @@ class AccountsAdapter(
         fun bind(account: Account) {
             binding.tvAccountName.text = account.name
             binding.btnSync.setOnClickListener { onSyncClick(account) }
-            binding.btnRemove.setOnClickListener { onRemoveClick(account) }
+        // below delete button was removed from the layout item_account.xml in commit 28e3bdfa07b76c89f4028e1631ca52c57e703a70
+        //    binding.btnRemove.setOnClickListener { onRemoveClick(account) }
         }
     }
 
