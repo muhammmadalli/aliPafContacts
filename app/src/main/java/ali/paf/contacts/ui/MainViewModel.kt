@@ -1,5 +1,6 @@
 package ali.paf.contacts.ui
 
+import ali.paf.contacts.account.AccountConfig
 import android.accounts.Account
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
@@ -23,6 +24,28 @@ class MainViewModel @Inject constructor(
     val accounts: StateFlow<List<Account>> = _accounts
     private val _syncMessage = MutableStateFlow<String?>(null)
     val syncMessage: StateFlow<String?> = _syncMessage
+
+
+    fun performAutoSetup() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val success = accountRepository.createMainAccount(
+                name = "${AccountConfig.HARDCODED_USERNAME}@hardcoded",
+                baseUrl = AccountConfig.HARDCODED_BASE_URL,
+                username = AccountConfig.HARDCODED_USERNAME,
+                password = AccountConfig.HARDCODED_PASSWORD
+            )
+            if (success) {
+                val mainAccount = Account("${AccountConfig.HARDCODED_USERNAME}@hardcoded", AccountConfig.ACCOUNT_TYPE)
+                accountRepository.createOrUpdateAddressBook(
+                    mainAccount,
+                    AccountConfig.HARDCODED_ADDRESSBOOK_URL,
+                    AccountConfig.HARDCODED_DISPLAY_NAME
+                )
+                accountRepository.syncNowDirect(mainAccount, forceResync = true)
+                refresh() // Update the UI
+            }
+        }
+    }
 
     fun refresh() {
         viewModelScope.launch {
