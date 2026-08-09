@@ -117,11 +117,18 @@ class MainActivity : AppCompatActivity() {
                 viewModel.clearSyncMessage()
             }
         }
+
+        lifecycleScope.launch {
+            viewModel.lastAttemptStatus.collect { status ->
+                binding.tvSyncStatus.text = getString(R.string.main_last_attempt, status)
+            }
+        }
     }
 
     override fun onResume() {
         super.onResume()
         viewModel.refresh()
+        viewModel.refreshLastAttemptStatus()
         adapter.updateSyncStatus(
             viewModel.syncingAccountNames.value,
             adapter.currentList.associate { account ->

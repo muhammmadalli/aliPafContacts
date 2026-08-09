@@ -27,6 +27,8 @@ class MainViewModel @Inject constructor(
     private val _syncMessage = MutableStateFlow<String?>(null)
     val syncMessage: StateFlow<String?> = _syncMessage
     private val syncStatusStore = SyncStatusStore(application)
+    private val _lastAttemptStatus = MutableStateFlow(syncStatusStore.lastAttemptStatus())
+    val lastAttemptStatus: StateFlow<String> = _lastAttemptStatus.asStateFlow()
     private val _syncingAccountNames = MutableStateFlow<Set<String>>(emptySet())
     val syncingAccountNames: StateFlow<Set<String>> = _syncingAccountNames.asStateFlow()
 
@@ -68,6 +70,7 @@ class MainViewModel @Inject constructor(
             // A normal manual sync should use the saved sync token/ETags just like a
             // scheduled sync. Force resync is reserved for recovery or setup flows.
             val result = accountRepository.syncNowDirect(account)
+            _lastAttemptStatus.value = syncStatusStore.lastAttemptStatus()
             _syncMessage.value = result.fold(
                 onSuccess = { "Synced $it address book(s) for ${account.name}." },
                 onFailure = { "Sync failed for ${account.name}: ${it.message ?: "Unknown error"}" }
@@ -77,6 +80,10 @@ class MainViewModel @Inject constructor(
     }
 
     fun lastSuccessfulSync(account: Account): Long = syncStatusStore.lastSuccessfulSync(account)
+
+    fun refreshLastAttemptStatus() {
+        _lastAttemptStatus.value = syncStatusStore.lastAttemptStatus()
+    }
 
     fun clearSyncMessage() {
         _syncMessage.value = null

@@ -105,19 +105,22 @@ class AccountRepository @Inject constructor(private val context: Context) {
 
     fun syncNowDirect(mainAccount: Account, forceResync: Boolean = false): Result<Int> {
         val am = AccountManager.get(context)
-        val addressBooks = getAddressBookAccounts(mainAccount)
-        if (addressBooks.isEmpty()) {
-            return Result.failure(IllegalStateException("No address books found for ${mainAccount.name}"))
-        }
-
-        val baseUrl = am.getUserData(mainAccount, AccountConfig.KEY_BASE_URL)
-            ?: return Result.failure(IllegalStateException("Missing base URL for ${mainAccount.name}"))
-        val username = am.getUserData(mainAccount, AccountConfig.KEY_USERNAME)
-            ?: return Result.failure(IllegalStateException("Missing username for ${mainAccount.name}"))
-        val password = am.getPassword(mainAccount)
-            ?: return Result.failure(IllegalStateException("Missing password for ${mainAccount.name}"))
+        val syncStatusStore = SyncStatusStore(context)
+        syncStatusStore.recordAttemptStarted(mainAccount)
 
         return runCatching {
+            val addressBooks = getAddressBookAccounts(mainAccount)
+            check(addressBooks.isNotEmpty()) { "No address books found for ${mainAccount.name}" }
+
+            val baseUrl = requireNotNull(am.getUserData(mainAccount, AccountConfig.KEY_BASE_URL)) {
+                "Missing base URL for ${mainAccount.name}"
+            }
+            val username = requireNotNull(am.getUserData(mainAccount, AccountConfig.KEY_USERNAME)) {
+                "Missing username for ${mainAccount.name}"
+            }
+            val password = requireNotNull(am.getPassword(mainAccount)) {
+                "Missing password for ${mainAccount.name}"
+            }
             var syncedCount = 0
             addressBooks.forEach { ab ->
                 ensureContactsAreVisible(ab)
@@ -135,9 +138,9 @@ class AccountRepository @Inject constructor(private val context: Context) {
                     syncedCount++
                 }
             }
-            SyncStatusStore(context).recordSuccessfulSync(mainAccount)
+            syncStatusStore.recordSuccessfulSync(mainAccount)
             syncedCount
-        }
+        }.onFailure { syncStatusStore.recordFailedSync(mainAccount, it) }
     }
 
     fun scheduleRandomPeriodicSync(account: Account) {
