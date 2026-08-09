@@ -59,6 +59,7 @@ class ContactsSyncAdapterService : Service() {
             val httpClient = HttpClientFactory.create(context, username, password)
             try {
                 ContactsSyncManager(context, account, provider, httpClient, collectionUrl, extras).performSync()
+                SyncStatusStore(context).recordSuccessfulSync(mainAccount)
                 // Reschedule with a new random interval after success
                 ali.paf.contacts.account.AccountRepository(context).scheduleRandomPeriodicSync(account)
             } catch (e: Exception) {

@@ -10,6 +10,8 @@ import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
 import android.view.View
+import android.view.Menu
+import android.view.MenuItem
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
@@ -85,24 +87,10 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch {
             viewModel.accounts.collect { accounts ->
                 adapter.submitList(accounts)
-                binding.tvEmpty.visibility = if (accounts.isEmpty()) View.VISIBLE else View.GONE
-            }
-        }
-
-        /*    WAS USED FOR INTERACTION BY THE USER WITH THE SYNC SERVER AND ADDRESSBOOK SELECTION IN THE UI
-        lifecycleScope.launch {
-            viewModel.syncMessage.collect { message ->
-                if (message.isNullOrEmpty()) return@collect
-                Snackbar.make(binding.root, message, Snackbar.LENGTH_LONG).show()
-                viewModel.clearSyncMessage()
-            }
-        }
-
-*/
-// FUNCTION CODE BELOW FOR AUTO ACCOUNT SIGNUP
-        lifecycleScope.launch {
-            viewModel.accounts.collect { accounts ->
-                adapter.submitList(accounts)
+                adapter.updateSyncStatus(
+                    viewModel.syncingAccountNames.value,
+                    accounts.associate { account -> account.name to viewModel.lastSuccessfulSync(account) }
+                )
                 if (accounts.isEmpty()) {
                     binding.tvEmpty.visibility = View.VISIBLE
                     // Trigger auto-setup if nothing is configured
@@ -112,9 +100,48 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+
+        lifecycleScope.launch {
+            viewModel.syncingAccountNames.collect { syncingNames ->
+                val lastSuccessfulSyncs = adapter.currentList.associate { account ->
+                    account.name to viewModel.lastSuccessfulSync(account)
+                }
+                adapter.updateSyncStatus(syncingNames, lastSuccessfulSyncs)
+            }
+        }
+
+        lifecycleScope.launch {
+            viewModel.syncMessage.collect { message ->
+                if (message.isNullOrEmpty()) return@collect
+                Snackbar.make(binding.root, message, Snackbar.LENGTH_LONG).show()
+                viewModel.clearSyncMessage()
+            }
+        }
     }
 
-    override fun onResume() { super.onResume(); viewModel.refresh() }
+    override fun onResume() {
+        super.onResume()
+        viewModel.refresh()
+        adapter.updateSyncStatus(
+            viewModel.syncingAccountNames.value,
+            adapter.currentList.associate { account ->
+                account.name to viewModel.lastSuccessfulSync(account)
+            }
+        )
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menuInflater.inflate(R.menu.main_menu, menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean = when (item.itemId) {
+        R.id.action_app_info -> {
+            startActivity(Intent(this, AppInfoActivity::class.java))
+            true
+        }
+        else -> super.onOptionsItemSelected(item)
+    }
 
     private fun checkBatteryOptimizations() {
         val pm = getSystemService(POWER_SERVICE) as PowerManager

@@ -37,6 +37,10 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".ui.AppInfoActivity"
+            android:exported="false" />
+
         <!-- Login screen (started by AccountManager when adding an account) -->
         <activity
             android:name=".ui.LoginActivity"

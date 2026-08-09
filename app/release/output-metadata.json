@@ -11,8 +11,8 @@
       "type": "SINGLE",
       "filters": [],
       "attributes": [],
-      "versionCode": 100112,
-      "versionName": "1.0.11hardcodedBook",
+      "versionCode": 100120,
+      "versionName": "1.0.12progressBar",
       "outputFile": "app-release.apk"
     }
   ],

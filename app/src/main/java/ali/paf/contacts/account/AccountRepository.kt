@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.provider.ContactsContract
 import android.util.Log
 import ali.paf.contacts.sync.ContactsSyncManager
+import ali.paf.contacts.sync.SyncStatusStore
 import ali.paf.contacts.util.HttpClientFactory
 import java.util.Random
 import javax.inject.Inject
@@ -134,6 +135,7 @@ class AccountRepository @Inject constructor(private val context: Context) {
                     syncedCount++
                 }
             }
+            SyncStatusStore(context).recordSuccessfulSync(mainAccount)
             syncedCount
         }
     }

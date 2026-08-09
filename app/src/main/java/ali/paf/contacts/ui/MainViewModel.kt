@@ -6,10 +6,12 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import ali.paf.contacts.account.AccountRepository
+import ali.paf.contacts.sync.SyncStatusStore
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -24,6 +26,9 @@ class MainViewModel @Inject constructor(
     val accounts: StateFlow<List<Account>> = _accounts
     private val _syncMessage = MutableStateFlow<String?>(null)
     val syncMessage: StateFlow<String?> = _syncMessage
+    private val syncStatusStore = SyncStatusStore(application)
+    private val _syncingAccountNames = MutableStateFlow<Set<String>>(emptySet())
+    val syncingAccountNames: StateFlow<Set<String>> = _syncingAccountNames.asStateFlow()
 
 
     fun performAutoSetup() {
@@ -59,6 +64,7 @@ class MainViewModel @Inject constructor(
 
     fun syncNow(account: Account) {
         viewModelScope.launch(Dispatchers.IO) {
+            _syncingAccountNames.value = _syncingAccountNames.value + account.name
             // A normal manual sync should use the saved sync token/ETags just like a
             // scheduled sync. Force resync is reserved for recovery or setup flows.
             val result = accountRepository.syncNowDirect(account)
@@ -66,8 +72,11 @@ class MainViewModel @Inject constructor(
                 onSuccess = { "Synced $it address book(s) for ${account.name}." },
                 onFailure = { "Sync failed for ${account.name}: ${it.message ?: "Unknown error"}" }
             )
+            _syncingAccountNames.value = _syncingAccountNames.value - account.name
         }
     }
+
+    fun lastSuccessfulSync(account: Account): Long = syncStatusStore.lastSuccessfulSync(account)
 
     fun clearSyncMessage() {
         _syncMessage.value = null
