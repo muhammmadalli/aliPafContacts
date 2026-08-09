@@ -11,7 +11,7 @@
       "type": "SINGLE",
       "filters": [],
       "attributes": [],
-      "versionCode": 100110,
+      "versionCode": 100112,
       "versionName": "1.0.11hardcodedBook",
       "outputFile": "app-release.apk"
     }
