@@ -11,8 +11,8 @@
       "type": "SINGLE",
       "filters": [],
       "attributes": [],
-      "versionCode": 100130,
-      "versionName": "1.0.13progressBar",
+      "versionCode": 100140,
+      "versionName": "1.0.14sogo",
       "outputFile": "app-release.apk"
     }
   ],

@@ -218,11 +218,13 @@ class ContactsSyncManager(
             ac.add()
             ac.id!!
         }
-        // AndroidContact.update() does not update our CardDAV metadata. Persist the
-        // new ETag for both inserts and updates so future syncs can skip this card.
-        updateLocalContactMeta(rawContactId, fileName, eTag, dirty = false, deleted = false)
         applyCustomPhoneLabels(rawContactId, extractCustomPhoneLabels(rawVCard))
         applyCustomImEntries(rawContactId, extractCustomImEntries(rawVCard))
+        // All provider writes above can mark the parent raw contact DIRTY. Clear that
+        // marker last, after the card and its custom fields are fully applied, so an
+        // unchanged remote contact is not selected for download on every next sync.
+        // AndroidContact.update() also does not manage our CardDAV metadata.
+        updateLocalContactMeta(rawContactId, fileName, eTag, dirty = false, deleted = false)
     }
 
     private fun applyCustomPhoneLabels(rawContactId: Long, customPhoneLabels: List<CustomPhoneLabel>) {
