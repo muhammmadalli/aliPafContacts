@@ -11,7 +11,7 @@
       "type": "SINGLE",
       "filters": [],
       "attributes": [],
-      "versionCode": 100120,
+      "versionCode": 100123,
       "versionName": "1.0.12progressBar",
       "outputFile": "app-release.apk"
     }
