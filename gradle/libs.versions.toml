@@ -10,6 +10,7 @@ dav4jvm = "2.2.1"
 vcard4android = "7dbab26986"
 desugar-jdk-libs = "2.1.5"
 guava-listenablefuture = "1.0"
+constraintlayout = "2.2.2"
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
@@ -38,3 +39,4 @@ dav4jvm = { module = "com.github.bitfireAT:dav4jvm", version.ref = "dav4jvm" }
 vcard4android = { module = "com.github.bitfireAT:vcard4android", version.ref = "vcard4android" }
 desugar_jdk_libs = { module = "com.android.tools:desugar_jdk_libs", version.ref = "desugar-jdk-libs" }
 guava-listenablefuture = { module = "com.google.guava:listenablefuture", version.ref = "guava-listenablefuture" }
+androidx-constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }
