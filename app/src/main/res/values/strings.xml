@@ -19,7 +19,7 @@
     <string name="main_no_accounts">No accounts yet.\nTap + to add the syncing account.</string>
     <string name="main_remove_account">Remove account</string>
     <string name="main_sync_now">Sync now</string>
-    <string name="main_last_update">Last successful update: \n %1$s</string>
+    <string name="main_last_update">Last successful update: \n%1$s</string>
     <string name="main_last_update_never">Last successful update: Never</string>
     <string name="main_last_attempt">Last update attempt:\n%1$s</string>
 
