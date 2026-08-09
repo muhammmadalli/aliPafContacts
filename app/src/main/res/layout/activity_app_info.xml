@@ -44,12 +44,12 @@
             <View
                 android:id="@+id/divider"
                 android:layout_width="match_parent"
-                android:layout_height="1dp"
+                android:layout_height="10dp"
                 android:background="?android:attr/listDivider" />
 
             <TextView
                 android:layout_width="match_parent"
-                android:layout_height="169dp"
+                android:layout_height="wrap_content"
                 android:layout_marginTop="24dp"
                 android:text="@string/app_info_description"
                 android:textAppearance="@style/TextAppearance.AppCompat.Large" />
@@ -57,20 +57,20 @@
             <View
                 android:id="@+id/divider2"
                 android:layout_width="match_parent"
-                android:layout_height="1dp"
+                android:layout_height="5dp"
                 android:background="?android:attr/listDivider" />
 
             <TextView
                 android:id="@+id/textView3"
                 android:layout_width="match_parent"
-                android:layout_height="245dp"
+                android:layout_height="wrap_content"
                 android:text="@string/app_info_instructions"
                 android:textAppearance="@style/TextAppearance.AppCompat.Medium" />
 
             <View
                 android:id="@+id/divider3"
                 android:layout_width="match_parent"
-                android:layout_height="1dp"
+                android:layout_height="10dp"
                 android:background="?android:attr/listDivider" />
 
             <TextView

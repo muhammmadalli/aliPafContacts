@@ -35,7 +35,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:textAppearance="?attr/textAppearanceBodySmall" />
+                android:textAppearance="@style/TextAppearance.AppCompat.Body2" />
 
             <com.google.android.material.progressindicator.LinearProgressIndicator
                 android:id="@+id/sync_progress"
