@@ -44,7 +44,7 @@
         android:contentDescription="@string/main_add_account"
         android:scaleType="center"
         android:src="@android:drawable/ic_input_add"
-        app:backgroundTint="#4dc3ff"
+        app:backgroundTint="#004DC3FF"
         app:fabCustomSize="88dp"
         app:maxImageSize="50dp" />
 

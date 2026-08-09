@@ -28,8 +28,8 @@
 
         <ImageButton
             android:id="@+id/btn_sync"
-            android:layout_width="100dp"
-            android:layout_height="100dp"
+            android:layout_width="85dp"
+            android:layout_height="85dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/main_sync_now"
             android:scaleType="fitCenter"
