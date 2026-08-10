@@ -2,6 +2,7 @@ package ali.paf.contacts.sync
 
 import android.accounts.Account
 import android.content.*
+import android.net.Uri
 import android.os.Bundle
 import android.provider.ContactsContract
 import android.provider.ContactsContract.CommonDataKinds.Im
@@ -41,6 +42,8 @@ class ContactsSyncManager(
         private const val TAG = "ContactsSyncManager"
         private const val SYNC_STATE_CTAG = "ctag"
         private const val SYNC_STATE_SYNC_TOKEN = "sync_token"
+        private const val SYNC_STATE_REMOTE_INDEX = "remote_index"
+        private const val SYNC_STATE_REMOTE_FILE = "remote_file"
         private const val CHUNK_SIZE = 15
         private const val LEGACY_JABBER_PROPERTY = "X-JABBER"
         private val STANDARD_PHONE_TYPES = setOf(
@@ -60,8 +63,14 @@ class ContactsSyncManager(
             localSyncState = SyncState()
         }
         try {
-            if (!forceResync && localSyncState.syncToken != null) syncWithToken()
-            else syncWithPropfind()
+            // Older installations have a sync token but no remote-file index.
+            // Do one metadata-only collection scan to create the index; this lets
+            // us restore contacts deleted while the app was not running.
+            if (!forceResync && localSyncState.syncToken != null && localSyncState.remoteIndexAvailable) {
+                syncWithToken()
+            } else {
+                syncWithPropfind()
+            }
             saveSyncState(localSyncState)
             Log.i(TAG, "Sync completed for ${account.name}")
         } catch (e: HttpException) {
@@ -95,6 +104,12 @@ class ContactsSyncManager(
         }
         deletedHrefs.forEach { deleteLocalContactByRemoteFileName(it.substringAfterLast('/')) }
         val localMeta = getLocalContactMeta()
+        val knownRemoteFiles = localSyncState.remoteFiles.toMutableSet()
+        val deletedFileNames = deletedHrefs.map { it.substringAfterLast('/') }
+        knownRemoteFiles.removeAll(deletedFileNames.toSet())
+        changedHrefs.mapNotNullTo(knownRemoteFiles) { (href, _) ->
+            href.toHttpUrl().pathSegments.lastOrNull { it.isNotEmpty() }
+        }
         val contactsToDownload = changedHrefs
             .filter { (href, eTag) ->
                 val fileName = href.toHttpUrl().pathSegments.lastOrNull { it.isNotEmpty() }
@@ -104,6 +119,20 @@ class ContactsSyncManager(
             }
             .map { it.first }
             .toMutableList()
+
+        // A deletion in the Contacts app can remove the raw-contact row outright.
+        // The server has no change to report in that case, so compare the retained
+        // remote index with the current provider rows and fetch just the missing
+        // cards.
+        knownRemoteFiles
+            .filter { it !in localMeta }
+            .forEach { fileName ->
+                val href = collectionUrl.toHttpUrl().newBuilder().addPathSegment(fileName).build().toString()
+                if (href !in contactsToDownload) {
+                    Log.d(TAG, "Locally missing contact found: $fileName. Restoring from server.")
+                    contactsToDownload.add(href)
+                }
+            }
 
         // Supplement with contacts that have been locally modified or deleted to enforce server state
         getLocalDirtyOrDeletedContactFileNames().forEach { fileName ->
@@ -115,6 +144,7 @@ class ContactsSyncManager(
         }
 
         downloadAndApplyContacts(contactsToDownload)
+        localSyncState = localSyncState.copy(remoteFiles = knownRemoteFiles, remoteIndexAvailable = true)
         refreshSyncToken()
     }
 
@@ -137,6 +167,7 @@ class ContactsSyncManager(
             .keys.map { collectionUrl.toHttpUrl().newBuilder().addPathSegment(it).build().toString() }
         localMeta.keys.filter { it !in remoteEtags.keys }.forEach { deleteLocalContactByRemoteFileName(it) }
         downloadAndApplyContacts(toDownload)
+        localSyncState = localSyncState.copy(remoteFiles = remoteEtags.keys, remoteIndexAvailable = true)
         refreshCTag()
     }
 
@@ -499,26 +530,44 @@ class ContactsSyncManager(
 
     // ── Sync state ────────────────────────────────────────────────────────────
 
-    private data class SyncState(val cTag: String? = null, val syncToken: String? = null)
+    /**
+     * [remoteIndexAvailable] distinguishes an empty address book from sync state
+     * written by older app versions, which did not retain a remote-file index.
+     */
+    private data class SyncState(
+        val cTag: String? = null,
+        val syncToken: String? = null,
+        val remoteFiles: Set<String> = emptySet(),
+        val remoteIndexAvailable: Boolean = false
+    )
 
     private fun loadSyncState(): SyncState {
         var cTag: String? = null; var syncToken: String? = null
+        var remoteIndexAvailable = false
+        val remoteFiles = mutableSetOf<String>()
         provider.query(ContactsContract.SyncState.CONTENT_URI, arrayOf(ContactsContract.SyncState.DATA),
             "${ContactsContract.SyncState.ACCOUNT_TYPE}=? AND ${ContactsContract.SyncState.ACCOUNT_NAME}=?",
             arrayOf(account.type, account.name), null
         )?.use { cursor ->
             if (cursor.moveToFirst()) cursor.getString(0)?.split("\n")?.forEach { line ->
                 val parts = line.split("=", limit = 2).takeIf { it.size == 2 } ?: return@forEach
-                when (parts[0]) { SYNC_STATE_CTAG -> cTag = parts[1]; SYNC_STATE_SYNC_TOKEN -> syncToken = parts[1] }
+                when (parts[0]) {
+                    SYNC_STATE_CTAG -> cTag = parts[1]
+                    SYNC_STATE_SYNC_TOKEN -> syncToken = parts[1]
+                    SYNC_STATE_REMOTE_INDEX -> remoteIndexAvailable = parts[1] == "1"
+                    SYNC_STATE_REMOTE_FILE -> remoteFiles += Uri.decode(parts[1])
+                }
             }
         }
-        return SyncState(cTag, syncToken)
+        return SyncState(cTag, syncToken, remoteFiles, remoteIndexAvailable)
     }
 
     private fun saveSyncState(state: SyncState) {
         val raw = buildString {
             state.cTag?.let { append("$SYNC_STATE_CTAG=$it\n") }
             state.syncToken?.let { append("$SYNC_STATE_SYNC_TOKEN=$it\n") }
+            append("$SYNC_STATE_REMOTE_INDEX=${if (state.remoteIndexAvailable) 1 else 0}\n")
+            state.remoteFiles.sorted().forEach { append("$SYNC_STATE_REMOTE_FILE=${Uri.encode(it)}\n") }
         }
         provider.insert(ContactsContract.SyncState.CONTENT_URI, ContentValues().apply {
             put(ContactsContract.SyncState.ACCOUNT_TYPE, account.type)
