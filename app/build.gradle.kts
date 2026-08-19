@@ -20,11 +20,11 @@ android {
         applicationId = "ali.paf.contacts"
         minSdk = 24
         targetSdk = 34
-        versionCode = 100150
+        versionCode = 100151
         versionName = "1.0.15"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        versionNameSuffix = "sogo"
+        versionNameSuffix = "Nextcloud"
     }
 
     buildTypes {
