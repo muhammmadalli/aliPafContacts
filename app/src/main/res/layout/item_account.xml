@@ -50,7 +50,7 @@
             android:id="@+id/btn_sync"
             android:layout_width="85dp"
             android:layout_height="85dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
+            android:background="@color/material_dynamic_neutral_variant20"
             android:contentDescription="@string/main_sync_now"
             android:scaleType="fitCenter"
             android:src="@drawable/sync_now_black"
