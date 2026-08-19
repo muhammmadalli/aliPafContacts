@@ -153,18 +153,32 @@ class AccountRepository @Inject constructor(private val context: Context) {
     }
 
     private fun ensureContactsAreVisible(account: Account) {
-        val values = ContentValues().apply {
-            put(ContactsContract.Settings.ACCOUNT_NAME, account.name)
-            put(ContactsContract.Settings.ACCOUNT_TYPE, account.type)
-            put(ContactsContract.Settings.UNGROUPED_VISIBLE, 1)
-            put(ContactsContract.Settings.SHOULD_SYNC, 1)
+        // Double check permissions to avoid crash if called prematurely
+        val hasRead = context.checkSelfPermission(android.Manifest.permission.READ_CONTACTS) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        val hasWrite = context.checkSelfPermission(android.Manifest.permission.WRITE_CONTACTS) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (!hasRead || !hasWrite) {
+            Log.w(TAG, "Cannot ensure contacts visibility: Missing permissions")
+            return
         }
 
-        val where = "${ContactsContract.Settings.ACCOUNT_NAME}=? AND ${ContactsContract.Settings.ACCOUNT_TYPE}=?"
-        val args = arrayOf(account.name, account.type)
-        val updated = context.contentResolver.update(ContactsContract.Settings.CONTENT_URI, values, where, args)
-        if (updated == 0) {
-            context.contentResolver.insert(ContactsContract.Settings.CONTENT_URI, values)
+        try {
+            val values = ContentValues().apply {
+                put(ContactsContract.Settings.ACCOUNT_NAME, account.name)
+                put(ContactsContract.Settings.ACCOUNT_TYPE, account.type)
+                put(ContactsContract.Settings.UNGROUPED_VISIBLE, 1)
+                put(ContactsContract.Settings.SHOULD_SYNC, 1)
+            }
+
+            val where = "${ContactsContract.Settings.ACCOUNT_NAME}=? AND ${ContactsContract.Settings.ACCOUNT_TYPE}=?"
+            val args = arrayOf(account.name, account.type)
+            val updated = context.contentResolver.update(ContactsContract.Settings.CONTENT_URI, values, where, args)
+            if (updated == 0) {
+                context.contentResolver.insert(ContactsContract.Settings.CONTENT_URI, values)
+            }
+        } catch (e: SecurityException) {
+            Log.e(TAG, "SecurityException while ensuring contacts visibility", e)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error ensuring contacts visibility", e)
         }
     }
 }

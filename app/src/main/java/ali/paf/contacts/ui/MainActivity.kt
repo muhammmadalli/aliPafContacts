@@ -42,6 +42,12 @@ class MainActivity : AppCompatActivity() {
             grants[Manifest.permission.WRITE_CONTACTS] == true
         if (!hasAllPermissions) {
             Snackbar.make(binding.root, "Contacts permissions are required.", Snackbar.LENGTH_LONG).show()
+        } else {
+            // Permissions granted, trigger refresh/setup if needed
+            viewModel.refresh()
+            if (viewModel.accounts.value.isEmpty()) {
+                viewModel.performAutoSetup()
+            }
         }
     }
 
@@ -93,8 +99,19 @@ class MainActivity : AppCompatActivity() {
                 )
                 if (accounts.isEmpty()) {
                     binding.tvEmpty.visibility = View.VISIBLE
-                    // Trigger auto-setup if nothing is configured
-                    viewModel.performAutoSetup()
+                    // Trigger auto-setup only if permissions are already granted
+                    val hasReadContacts = ContextCompat.checkSelfPermission(
+                        this@MainActivity,
+                        Manifest.permission.READ_CONTACTS
+                    ) == PackageManager.PERMISSION_GRANTED
+                    val hasWriteContacts = ContextCompat.checkSelfPermission(
+                        this@MainActivity,
+                        Manifest.permission.WRITE_CONTACTS
+                    ) == PackageManager.PERMISSION_GRANTED
+
+                    if (hasReadContacts && hasWriteContacts) {
+                        viewModel.performAutoSetup()
+                    }
                 } else {
                     binding.tvEmpty.visibility = View.GONE
                 }
