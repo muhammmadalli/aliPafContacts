@@ -53,7 +53,7 @@
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/main_sync_now"
             android:scaleType="fitCenter"
-            android:src="@android:drawable/ic_popup_sync"
+            android:src="@drawable/sync_now_black"
             app:tint="#2196F3" />
 
     </LinearLayout>
