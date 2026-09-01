@@ -11,8 +11,10 @@
         <androidx.appcompat.widget.Toolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            android:title="@string/app_info_title" />
+            android:layout_height="75dp"
+            android:title="@string/app_info_title"
+            app:logo="@drawable/address_book_3_50dp"
+            app:logoDescription="aircontactsLogo" />
     </com.google.android.material.appbar.AppBarLayout>
 
     <ScrollView
