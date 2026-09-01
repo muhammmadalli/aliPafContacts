@@ -42,6 +42,12 @@ class MainActivity : AppCompatActivity() {
             grants[Manifest.permission.WRITE_CONTACTS] == true
         if (!hasAllPermissions) {
             Snackbar.make(binding.root, "Contacts permissions are required.", Snackbar.LENGTH_LONG).show()
+        } else {
+            // Permissions granted, trigger refresh/setup if needed
+            viewModel.refresh()
+            if (viewModel.accounts.value.isEmpty()) {
+                viewModel.performAutoSetup()
+            }
         }
     }
 
@@ -70,7 +76,9 @@ class MainActivity : AppCompatActivity() {
         }
 
         checkBatteryOptimizations()
-        checkUnusedAppRestrictions()
+
+        // UNUSED APP RESTRICTION PERMISSION IS REMOVED NOW - THE PERMISSION WILL BE GRANTED BY MDM
+        // checkUnusedAppRestrictions()
 
         adapter = AccountsAdapter(
             onSyncClick = { viewModel.syncNow(it) },
@@ -79,10 +87,14 @@ class MainActivity : AppCompatActivity() {
         binding.recyclerView.layoutManager = LinearLayoutManager(this)
         binding.recyclerView.adapter = adapter
 
+        /* ADD ACCOUNT BUTTON CURRENTLY REMOVED FROM THE UI
+
         binding.fabAddAccount.setOnClickListener {
             AccountManager.get(this)
                 .addAccount("ali.paf.contacts", null, null, null, this, null, null)
         }
+
+         */
 
         lifecycleScope.launch {
             viewModel.accounts.collect { accounts ->
@@ -93,8 +105,19 @@ class MainActivity : AppCompatActivity() {
                 )
                 if (accounts.isEmpty()) {
                     binding.tvEmpty.visibility = View.VISIBLE
-                    // Trigger auto-setup if nothing is configured
-                    viewModel.performAutoSetup()
+                    // Trigger auto-setup only if permissions are already granted
+                    val hasReadContacts = ContextCompat.checkSelfPermission(
+                        this@MainActivity,
+                        Manifest.permission.READ_CONTACTS
+                    ) == PackageManager.PERMISSION_GRANTED
+                    val hasWriteContacts = ContextCompat.checkSelfPermission(
+                        this@MainActivity,
+                        Manifest.permission.WRITE_CONTACTS
+                    ) == PackageManager.PERMISSION_GRANTED
+
+                    if (hasReadContacts && hasWriteContacts) {
+                        viewModel.performAutoSetup()
+                    }
                 } else {
                     binding.tvEmpty.visibility = View.GONE
                 }
@@ -168,6 +191,9 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+
+    /* UNUSED APP RESTRICTION PERMISSION IS REMOVED NOW - THE PERMISSION WILL BE GRANTED BY MDM
+
     private fun checkUnusedAppRestrictions() {
         val future = PackageManagerCompat.getUnusedAppRestrictionsStatus(this)
         future.addListener({
@@ -191,6 +217,8 @@ class MainActivity : AppCompatActivity() {
             }
         }, ContextCompat.getMainExecutor(this))
     }
+
+     */
 
     private fun confirmRemove(account: Account) {
         AlertDialog.Builder(this)

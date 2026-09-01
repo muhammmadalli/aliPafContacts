@@ -1,0 +1,3 @@
+- `[x]` Update `MainActivity.kt` to defer `performAutoSetup` until contacts permissions are granted
+- `[x]` Update `AccountRepository.kt` to add permission checks and try-catch in `ensureContactsAreVisible`
+- `[ ]` Verify the fix manually

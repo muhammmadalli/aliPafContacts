@@ -36,13 +36,13 @@ class MainViewModel @Inject constructor(
     fun performAutoSetup() {
         viewModelScope.launch(Dispatchers.IO) {
             val success = accountRepository.createMainAccount(
-                name = "${AccountConfig.HARDCODED_USERNAME}-CONTACTS SYNC",
+                name = "${AccountConfig.HARDCODED_USERNAME}-SYNC",
                 baseUrl = AccountConfig.HARDCODED_BASE_URL,
                 username = AccountConfig.HARDCODED_USERNAME,
                 password = AccountConfig.HARDCODED_PASSWORD
             )
             if (success) {
-                val mainAccount = Account("${AccountConfig.HARDCODED_USERNAME}-CONTACTS SYNC", AccountConfig.ACCOUNT_TYPE)
+                val mainAccount = Account("${AccountConfig.HARDCODED_USERNAME}-SYNC", AccountConfig.ACCOUNT_TYPE)
                 accountRepository.createOrUpdateAddressBook(
                     mainAccount,
                     AccountConfig.HARDCODED_ADDRESSBOOK_URL,
