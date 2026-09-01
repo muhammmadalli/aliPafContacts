@@ -76,7 +76,9 @@ class MainActivity : AppCompatActivity() {
         }
 
         checkBatteryOptimizations()
-        checkUnusedAppRestrictions()
+
+        // UNUSED APP RESTRICTION PERMISSION IS REMOVED NOW - THE PERMISSION WILL BE GRANTED BY MDM
+        // checkUnusedAppRestrictions()
 
         adapter = AccountsAdapter(
             onSyncClick = { viewModel.syncNow(it) },
@@ -189,6 +191,9 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+
+    /* UNUSED APP RESTRICTION PERMISSION IS REMOVED NOW - THE PERMISSION WILL BE GRANTED BY MDM
+
     private fun checkUnusedAppRestrictions() {
         val future = PackageManagerCompat.getUnusedAppRestrictionsStatus(this)
         future.addListener({
@@ -212,6 +217,8 @@ class MainActivity : AppCompatActivity() {
             }
         }, ContextCompat.getMainExecutor(this))
     }
+
+     */
 
     private fun confirmRemove(account: Account) {
         AlertDialog.Builder(this)
