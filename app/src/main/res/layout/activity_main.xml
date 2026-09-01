@@ -41,7 +41,7 @@
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|start"
         android:layout_marginStart="16dp"
-        android:layout_marginEnd="112dp"
+        android:layout_marginEnd="16dp"
         android:layout_marginBottom="16dp"
         app:cardCornerRadius="8dp"
         app:cardElevation="4dp">
@@ -53,19 +53,5 @@
             android:padding="16dp"
             android:textAppearance="@style/TextAppearance.AppCompat.Body2" />
     </com.google.android.material.card.MaterialCardView>
-
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/fab_add_account"
-        android:layout_width="88dp"
-        android:layout_height="88dp"
-        android:layout_gravity="bottom|end"
-        android:layout_margin="16dp"
-        android:adjustViewBounds="false"
-        android:contentDescription="@string/main_add_account"
-        android:scaleType="center"
-        android:src="@android:drawable/ic_input_add"
-        app:backgroundTint="#004DC3FF"
-        app:fabCustomSize="88dp"
-        app:maxImageSize="50dp" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
