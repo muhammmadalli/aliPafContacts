@@ -1,4 +1,5 @@
 <resources>
     <color name="nextcloud_blue">#4dc3ff</color>
     <color name="nextcloud_blue_dark">#0099e6</color>
+    <color name="card_surface_background">#CCFFFFFF</color>
 </resources>
