@@ -85,10 +85,14 @@ class MainActivity : AppCompatActivity() {
         binding.recyclerView.layoutManager = LinearLayoutManager(this)
         binding.recyclerView.adapter = adapter
 
+        /* ADD ACCOUNT BUTTON CURRENTLY REMOVED FROM THE UI
+
         binding.fabAddAccount.setOnClickListener {
             AccountManager.get(this)
                 .addAccount("ali.paf.contacts", null, null, null, this, null, null)
         }
+
+         */
 
         lifecycleScope.launch {
             viewModel.accounts.collect { accounts ->
