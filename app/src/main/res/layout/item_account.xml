@@ -50,10 +50,9 @@
             android:id="@+id/btn_sync"
             android:layout_width="85dp"
             android:layout_height="85dp"
-            android:background="@color/material_dynamic_neutral_variant20"
             android:contentDescription="@string/main_sync_now"
             android:scaleType="fitCenter"
-            android:src="@drawable/syncbtn1" />
+            android:src="@drawable/syncbtn2" />
 
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>
