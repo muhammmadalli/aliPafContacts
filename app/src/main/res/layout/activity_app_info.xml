@@ -71,6 +71,13 @@
                 android:text="@string/app_info_instructions"
                 android:textAppearance="@style/TextAppearance.AppCompat.Medium" />
 
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_user_guide"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="@string/app_info_user_guide" />
+
             <View
                 android:id="@+id/divider3"
                 android:layout_width="match_parent"
