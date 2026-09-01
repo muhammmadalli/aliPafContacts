@@ -16,7 +16,18 @@
             android:gravity="start|center_vertical"
             app:logo="@drawable/address_book_3_50dp"
             app:logoDescription="@string/app_name"
-            app:title="@string/main_title" />
+            app:title="@string/main_title">
+
+            <ImageButton
+                android:id="@+id/btn_app_info"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_gravity="end|center_vertical"
+                android:layout_marginEnd="8dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/app_info_title"
+                android:src="@android:drawable/ic_dialog_info" />
+        </androidx.appcompat.widget.Toolbar>
 
     </com.google.android.material.appbar.AppBarLayout>
 

@@ -10,8 +10,6 @@ import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
 import android.view.View
-import android.view.Menu
-import android.view.MenuItem
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
@@ -86,6 +84,9 @@ class MainActivity : AppCompatActivity() {
         )
         binding.recyclerView.layoutManager = LinearLayoutManager(this)
         binding.recyclerView.adapter = adapter
+        binding.btnAppInfo.setOnClickListener {
+            startActivity(Intent(this, AppInfoActivity::class.java))
+        }
 
         /* ADD ACCOUNT BUTTON CURRENTLY REMOVED FROM THE UI
 
@@ -158,19 +159,6 @@ class MainActivity : AppCompatActivity() {
                 account.name to viewModel.lastSuccessfulSync(account)
             }
         )
-    }
-
-    override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        menuInflater.inflate(R.menu.main_menu, menu)
-        return true
-    }
-
-    override fun onOptionsItemSelected(item: MenuItem): Boolean = when (item.itemId) {
-        R.id.action_app_info -> {
-            startActivity(Intent(this, AppInfoActivity::class.java))
-            true
-        }
-        else -> super.onOptionsItemSelected(item)
     }
 
     private fun checkBatteryOptimizations() {
