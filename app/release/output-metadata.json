@@ -11,8 +11,8 @@
       "type": "SINGLE",
       "filters": [],
       "attributes": [],
-      "versionCode": 100170,
-      "versionName": "1.0.17Nextcloud",
+      "versionCode": 100180,
+      "versionName": "1.0.18PAF",
       "outputFile": "app-release.apk"
     }
   ],
