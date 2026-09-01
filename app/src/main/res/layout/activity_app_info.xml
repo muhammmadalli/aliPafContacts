@@ -20,10 +20,10 @@
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:fillViewport="true"
-        android:padding="24dp"
+        android:layout_marginTop="?attr/actionBarSize"
         android:clipToPadding="false"
-        android:layout_marginTop="?attr/actionBarSize">
+        android:fillViewport="true"
+        android:padding="16dp">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -54,9 +54,29 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="24dp"
+                android:layout_marginBottom="24dp"
                 android:text="@string/app_info_description"
                 android:textAlignment="center"
                 android:textAppearance="@style/TextAppearance.AppCompat.Large" />
+
+            <View
+                android:id="@+id/divider4"
+                android:layout_width="match_parent"
+                android:layout_height="5dp"
+                android:background="?android:attr/listDivider" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_user_guide"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_marginTop="16dp"
+                android:layout_marginEnd="16dp"
+                android:layout_marginBottom="16dp"
+                android:text="@string/app_info_user_guide"
+                android:textSize="24sp"
+                app:cornerRadius="8dp"
+                app:elevation="4dp" />
 
             <View
                 android:id="@+id/divider2"
@@ -68,15 +88,9 @@
                 android:id="@+id/textView3"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:padding="16dp"
                 android:text="@string/app_info_instructions"
                 android:textAppearance="@style/TextAppearance.AppCompat.Medium" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_user_guide"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:text="@string/app_info_user_guide" />
 
             <View
                 android:id="@+id/divider3"
