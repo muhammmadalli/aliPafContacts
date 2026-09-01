@@ -53,8 +53,7 @@
             android:background="@color/material_dynamic_neutral_variant20"
             android:contentDescription="@string/main_sync_now"
             android:scaleType="fitCenter"
-            android:src="@drawable/sync_now_black"
-            app:tint="#2196F3" />
+            android:src="@drawable/syncbtn1" />
 
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>
