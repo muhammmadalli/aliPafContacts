@@ -26,7 +26,7 @@
     <!-- App info -->
     <string name="app_info_title">App info</string>
     <string name="app_info_version">Version %1$s</string>
-    <string name="app_info_description">AirContacts keeps your PAFCOM LTE contacts synchronized with the Contacts on this device. Successful updates and active manual syncs are shown on the main screen.</string>
+    <string name="app_info_description">AirContacts keeps your PAFCOM LTE contacts synchronized on this device.</string>
     <string name="app_info_copyright">Copyright © 2026 No 1 Comm Wing\nmuhammmadali\nAll Rights Reserved</string>
     <string name="app_info_instructions"><b>INSTRUCTIONS</b>\n1. The app automatically syncs after 30 to 45 days. \n2. Hence, there is no need to sync manually.\n3. The only case in which manual sync may be performed is if a specific contact cannot be found in the user contacts. \n4. Frequent manual sync attempts will cause very high drainage of battery time and life.</string>
     <string name="app_info_user_guide">AirContacts User Guide</string>
