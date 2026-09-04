@@ -1,0 +1,3 @@
+- [x] Add `VIBRATE` permission to `AndroidManifest.xml`
+- [x] Add haptic feedback to `btnUserGuide` in `AppInfoActivity.kt`
+- [x] Add haptic feedback to `btnSync` in `AccountsAdapter.kt`
