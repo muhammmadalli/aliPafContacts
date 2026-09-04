@@ -11,8 +11,8 @@
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
-            android:layout_height="75dp"
-            android:minHeight="75dp"
+            android:layout_height="60dp"
+            android:minHeight="55dp"
             android:title="@string/app_info_title"
             app:logo="@drawable/address_book_3_50dp"
             app:logoDescription="aircontactsLogo" />
