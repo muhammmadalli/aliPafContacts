@@ -8,11 +8,11 @@
         android:id="@+id/background_image"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:alpha=".8"
+        android:alpha=".9"
         android:contentDescription="@null"
         android:scaleType="fitCenter"
-        android:scaleX=".7"
-        android:scaleY=".7"
+        android:scaleX=".5"
+        android:scaleY=".5"
         android:src="@drawable/kahaf1_removebg_preview" />
 
     <com.google.android.material.appbar.AppBarLayout
