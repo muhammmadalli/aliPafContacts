@@ -1,24 +1,23 @@
-# Walkthrough - Haptic Feedback Fix
+# Walkthrough - Robust Haptic Feedback Fix
 
-I have implemented haptic feedback for the Sync and User Guide buttons to improve the user experience and provide tactile confirmation of interactions.
+I have implemented a more robust haptic feedback mechanism to ensure that the phone vibrates when the Sync and User Guide buttons are clicked, even if system-wide "Touch feedback" settings are disabled.
 
 ## Changes Made
 
-### Configuration
-- **[AndroidManifest.xml](file:///D:/programDo/codex/aliPafContacts/app/src/main/AndroidManifest.xml)**: Added the `android.permission.VIBRATE` permission, which is necessary for the device to perform vibrations.
+### Utilities
+- **[ViewExtensions.kt](file:///D:/programDo/codex/aliPafContacts/app/src/main/java/ali/paf/contacts/util/ViewExtensions.kt)**: Added a new extension function `performRobustHapticFeedback()`. This function attempts to trigger haptics while ignoring global settings and provides a manual fallback using the `Vibrator` service for a 50ms pulse if the standard method fails.
 
 ### UI Logic
-- **[AppInfoActivity.kt](file:///D:/programDo/codex/aliPafContacts/app/src/main/java/ali/paf/contacts/ui/AppInfoActivity.kt)**: Updated the click listener for the "User Guide" button to trigger `performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)`.
-- **[AccountsAdapter.kt](file:///D:/programDo/codex/aliPafContacts/app/src/main/java/ali/paf/contacts/ui/AccountsAdapter.kt)**: Updated the click listener for the "Sync Now" icon button in each account row to trigger `performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)`.
+- **[AppInfoActivity.kt](file:///D:/programDo/codex/aliPafContacts/app/src/main/java/ali/paf/contacts/ui/AppInfoActivity.kt)**: Switched to `performRobustHapticFeedback()` for the "User Guide" button.
+- **[AccountsAdapter.kt](file:///D:/programDo/codex/aliPafContacts/app/src/main/java/ali/paf/contacts/ui/AccountsAdapter.kt)**: Switched to `performRobustHapticFeedback()` for the "Sync Now" icon button.
 
 ## Verification Results
 
 ### Automated Tests
-- The project was analyzed for syntax errors and build readiness. The changes use standard Android APIs for haptic feedback.
+- The code was verified for correct imports and syntax. The use of the `Vibrator` service fallback ensures that a vibration signal is sent to the hardware even if the high-level `performHapticFeedback` API is suppressed by the system.
 
 ### Manual Verification
-- You can now deploy the app to a physical device and test:
-    1.  Tap the **Sync** icon on any account in the main list.
-    2.  Go to **App Info** (info icon in the toolbar) and tap **User Guide**.
-- In both cases, you should feel a brief vibration (haptic feedback).
-- **Note**: Ensure "Touch feedback" (or similar) is enabled in your device's Sound/Haptics settings.
+- Deploy the app to your phone and test:
+    1.  Tap the **Sync** icon on an account.
+    2.  Tap the **User Guide** button in App Info.
+- The phone should now provide a clear vibration pulse.
