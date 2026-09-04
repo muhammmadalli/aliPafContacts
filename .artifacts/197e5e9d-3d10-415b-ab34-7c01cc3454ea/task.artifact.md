@@ -1,0 +1,2 @@
+- [x] Implement `SpannableString` logic in `MainActivity.kt` to insert sync icon
+- [x] Verify UI on device

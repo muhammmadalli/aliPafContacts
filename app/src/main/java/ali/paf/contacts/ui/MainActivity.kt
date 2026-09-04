@@ -9,6 +9,8 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
+import android.text.SpannableStringBuilder
+import android.text.style.ImageSpan
 import android.view.View
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
@@ -74,6 +76,8 @@ class MainActivity : AppCompatActivity() {
         }
 
         checkBatteryOptimizations()
+
+        setupInstructionsWithIcon()
 
         // UNUSED APP RESTRICTION PERMISSION IS REMOVED NOW - THE PERMISSION WILL BE GRANTED BY MDM
         // checkUnusedAppRestrictions()
@@ -215,5 +219,26 @@ class MainActivity : AppCompatActivity() {
             .setPositiveButton(android.R.string.ok) { _, _ -> viewModel.removeAccount(account) }
             .setNegativeButton(android.R.string.cancel, null)
             .show()
+    }
+
+    private fun setupInstructionsWithIcon() {
+        val instructions = getText(R.string.main_activity_instructions)
+        val ssb = SpannableStringBuilder(instructions)
+        val targetText = "2. Pressing Sync Button"
+        val plainText = instructions.toString()
+        val index = plainText.indexOf(targetText)
+        if (index != -1) {
+            val insertIndex = index + targetText.length
+            val drawable = ContextCompat.getDrawable(this, R.drawable.syncbtn2)
+            drawable?.let {
+                // Size it relative to the text size
+                val size = (binding.mainInstructionsText.textSize * 1.2).toInt()
+                it.setBounds(0, 0, size, size)
+                val imageSpan = ImageSpan(it, ImageSpan.ALIGN_BOTTOM)
+                ssb.insert(insertIndex, "  ")
+                ssb.setSpan(imageSpan, insertIndex + 1, insertIndex + 2, SpannableStringBuilder.SPAN_EXCLUSIVE_EXCLUSIVE)
+                binding.mainInstructionsText.text = ssb
+            }
+        }
     }
 }
