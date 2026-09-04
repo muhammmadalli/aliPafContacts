@@ -2,6 +2,7 @@ package ali.paf.contacts.ui
 
 import android.accounts.Account
 import android.text.format.DateFormat
+import android.view.HapticFeedbackConstants
 import android.view.View
 import android.view.LayoutInflater
 import android.view.ViewGroup
@@ -34,7 +35,10 @@ class AccountsAdapter(
         RecyclerView.ViewHolder(binding.root) {
         fun bind(account: Account) {
             binding.tvAccountName.text = account.name
-            binding.btnSync.setOnClickListener { onSyncClick(account) }
+            binding.btnSync.setOnClickListener {
+                it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                onSyncClick(account)
+            }
             val isSyncing = account.name in syncingAccountNames
             binding.syncProgress.visibility = if (isSyncing) View.VISIBLE else View.GONE
             binding.btnSync.isEnabled = !isSyncing

@@ -74,10 +74,16 @@
                 android:layout_marginTop="16dp"
                 android:layout_marginEnd="16dp"
                 android:layout_marginBottom="16dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:hapticFeedbackEnabled="true"
                 android:text="@string/app_info_user_guide"
+                android:textColor="@color/nextcloud_blue_dark"
                 android:textSize="24sp"
+                app:backgroundTint="@android:color/transparent"
                 app:cornerRadius="8dp"
-                app:elevation="4dp" />
+                app:elevation="4dp"
+                app:strokeColor="@color/nextcloud_blue_dark"
+                app:strokeWidth="2dp" />
 
             <View
                 android:id="@+id/divider2"
