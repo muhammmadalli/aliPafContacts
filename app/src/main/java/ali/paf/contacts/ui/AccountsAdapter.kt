@@ -2,7 +2,7 @@ package ali.paf.contacts.ui
 
 import android.accounts.Account
 import android.text.format.DateFormat
-import android.view.HapticFeedbackConstants
+import ali.paf.contacts.util.performRobustHapticFeedback
 import android.view.View
 import android.view.LayoutInflater
 import android.view.ViewGroup
@@ -36,7 +36,7 @@ class AccountsAdapter(
         fun bind(account: Account) {
             binding.tvAccountName.text = account.name
             binding.btnSync.setOnClickListener {
-                it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                it.performRobustHapticFeedback()
                 onSyncClick(account)
             }
             val isSyncing = account.name in syncingAccountNames

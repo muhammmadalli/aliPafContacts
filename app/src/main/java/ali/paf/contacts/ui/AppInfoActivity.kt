@@ -2,7 +2,7 @@ package ali.paf.contacts.ui
 
 import android.content.Intent
 import android.os.Bundle
-import android.view.HapticFeedbackConstants
+import ali.paf.contacts.util.performRobustHapticFeedback
 import androidx.core.content.FileProvider
 import java.io.File
 import androidx.appcompat.app.AppCompatActivity
@@ -21,7 +21,7 @@ class AppInfoActivity : AppCompatActivity() {
             packageManager.getPackageInfo(packageName, 0).versionName
         )
         binding.btnUserGuide.setOnClickListener {
-            it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+            it.performRobustHapticFeedback()
             openUserGuide()
         }
     }
