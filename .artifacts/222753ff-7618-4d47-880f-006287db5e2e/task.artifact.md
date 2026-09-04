@@ -1,0 +1,2 @@
+- [x] Update `activity_main.xml` to use `MaterialToolbar` and remove transparent background
+- [x] Verify the change (Manual)
