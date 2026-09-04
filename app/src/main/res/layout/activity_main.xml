@@ -86,7 +86,7 @@
                 android:layout_height="wrap_content"
                 android:padding="16dp"
                 android:text="@string/main_activity_instructions"
-                android:textAppearance="@style/TextAppearance.AppCompat.Medium" />
+                android:textAppearance="@style/TextAppearance.AppCompat.Body2" />
         </com.google.android.material.card.MaterialCardView>
 
         <com.google.android.material.card.MaterialCardView
