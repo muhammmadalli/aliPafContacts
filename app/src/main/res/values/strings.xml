@@ -30,7 +30,7 @@
     <string name="app_info_copyright">Copyright © 2026 No 1 Comm Wing\nmuhammmadali\nAll Rights Reserved</string>
     <string name="app_info_instructions"><b>IMPORTANT</b>\n1. Contacts are updated periodically in 30 to 45 days. \n2. The only case in which manual sync may be performed is if a specific contact cannot be found in the user contacts. \n3. Excessive re-syncs (manually) may cause very high drainage of battery.</string>
     <string name="app_info_user_guide">AirContacts\nUser Guide</string>
-    <string name="main_activity_instructions"><b>INSTRUCTIONS</b>\n1. AirContacts automatically synchronizes Air Directory (PAFCOM LTE - DEFCOM - AirCom Contacts).\n2. Pressing Sync Button re-syncs the contacts manually.\n3. Users may delete old local contacts while using the app for the first time). Detailed guideline is available by pressing ⓘ button at the top right.</string>>
+    <string name="main_activity_instructions"><b>INSTRUCTIONS</b>\n1. AirContacts automatically synchronizes Air Directory (PAFCOM LTE - DEFCOM - AirCom Contacts).\n2. Pressing Sync Button re-syncs the contacts manually.\n3. Users may delete old local contacts while using the app for the first time. Detailed guideline is available by pressing ⓘ button at the top right.</string>>
 
     <!-- Address book screen -->
     <string name="addressbook_title">Address Books</string>
