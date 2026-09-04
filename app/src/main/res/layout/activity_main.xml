@@ -10,18 +10,17 @@
         android:layout_height="match_parent"
         android:alpha=".9"
         android:contentDescription="@null"
+        android:paddingBottom="200dp"
         android:scaleType="fitCenter"
-        android:scaleX=".5"
-        android:scaleY=".5"
+        android:scaleX=".6"
+        android:scaleY=".6"
         android:src="@drawable/kahaf1_removebg_preview" />
 
     <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="@android:color/transparent"
-        app:elevation="0dp">
+        android:layout_height="wrap_content">
 
-        <androidx.appcompat.widget.Toolbar
+        <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="60dp"
@@ -39,7 +38,7 @@
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/app_info_title"
                 android:src="@android:drawable/ic_dialog_info" />
-        </androidx.appcompat.widget.Toolbar>
+        </com.google.android.material.appbar.MaterialToolbar>
 
     </com.google.android.material.appbar.AppBarLayout>
 
@@ -83,6 +82,7 @@
                 android:id="@+id/main_instructions_text"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:justificationMode="inter_word"
                 android:padding="16dp"
                 android:text="@string/main_activity_instructions"
                 android:textAppearance="@style/TextAppearance.AppCompat.Body2" />
