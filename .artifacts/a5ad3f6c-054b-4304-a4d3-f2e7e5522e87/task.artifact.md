@@ -1,0 +1,4 @@
+- `[x]` Add group caching and loading logic to `ContactsSyncManager`
+- `[x]` Implement `getOrCreateGroup` to manage contact groups
+- `[x]` Implement `applyContactGroups` to handle group memberships
+- `[x]` Integrate group application into `applyContactToProvider`
