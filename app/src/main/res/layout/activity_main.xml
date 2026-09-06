@@ -10,7 +10,7 @@
         android:layout_height="match_parent"
         android:alpha=".9"
         android:contentDescription="@null"
-        android:paddingBottom="200dp"
+        android:paddingBottom="250dp"
         android:scaleType="fitCenter"
         android:scaleX=".6"
         android:scaleY=".6"
