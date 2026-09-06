@@ -57,7 +57,7 @@ class AccountRepository @Inject constructor(private val context: Context) {
             }
 
     fun createOrUpdateAddressBook(mainAccount: Account, collectionUrl: String, displayName: String): Account {
-        val abName = "$displayName (${mainAccount.name})"
+        val abName = "${mainAccount.name} $displayName"
         val abAccount = Account(abName, AccountConfig.ACCOUNT_TYPE_ADDRESS_BOOK)
         val userData = Bundle().apply {
             putString(AccountConfig.KEY_COLLECTION_URL, collectionUrl)
