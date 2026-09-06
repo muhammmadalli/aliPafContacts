@@ -45,7 +45,7 @@ class SyncStatusStore(context: Context) {
      */
     fun lastAttemptStatus(): String {
         if (preferences.getBoolean(KEY_ATTEMPT_IN_PROGRESS, false)) {
-            val interruptedMessage = "Previous update was interrupted. Android may have stopped it because of battery restrictions."
+            val interruptedMessage = "Previous update was interrupted by the phone."
             preferences.edit()
                 .putBoolean(KEY_ATTEMPT_IN_PROGRESS, false)
                 .putString(KEY_LAST_ATTEMPT_MESSAGE, interruptedMessage)
