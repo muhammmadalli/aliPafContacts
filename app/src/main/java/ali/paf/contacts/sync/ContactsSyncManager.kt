@@ -2,6 +2,8 @@ package ali.paf.contacts.sync
 
 import android.accounts.Account
 import android.content.*
+import android.content.ContentUris
+import android.net.Uri
 import android.os.Bundle
 import android.provider.ContactsContract
 import android.provider.ContactsContract.CommonDataKinds.Im
@@ -27,6 +29,7 @@ class ContactsSyncManager(
 ) {
     private data class CustomPhoneLabel(val number: String, val label: String)
     private data class CustomImEntry(val handle: String, val type: Int, val label: String?)
+    private data class LocalContactMeta(val eTag: String, val dirty: Boolean)
     private data class ExistingImRow(
         val dataId: Long,
         val handle: String,
@@ -40,6 +43,8 @@ class ContactsSyncManager(
         private const val TAG = "ContactsSyncManager"
         private const val SYNC_STATE_CTAG = "ctag"
         private const val SYNC_STATE_SYNC_TOKEN = "sync_token"
+        private const val SYNC_STATE_REMOTE_INDEX = "remote_index"
+        private const val SYNC_STATE_REMOTE_FILE = "remote_file"
         private const val CHUNK_SIZE = 15
         private const val LEGACY_JABBER_PROPERTY = "X-JABBER"
         private val STANDARD_PHONE_TYPES = setOf(
@@ -48,19 +53,27 @@ class ContactsSyncManager(
         )
     }
 
+    private val accountGroups = mutableMapOf<String, Long>()
     private val davAddressBook = DavAddressBook(httpClient, collectionUrl.toHttpUrl())
     private var localSyncState: SyncState = loadSyncState()
 
     fun performSync() {
         Log.i(TAG, "Starting sync for ${account.name}")
+        loadAccountGroups()
         val forceResync = extras.getBoolean("force_resync", false)
         if (forceResync) {
             Log.i(TAG, "Force resync — clearing local sync state")
             localSyncState = SyncState()
         }
         try {
-            if (!forceResync && localSyncState.syncToken != null) syncWithToken()
-            else syncWithPropfind()
+            // Older installations have a sync token but no remote-file index.
+            // Do one metadata-only collection scan to create the index; this lets
+            // us restore contacts deleted while the app was not running.
+            if (!forceResync && localSyncState.syncToken != null && localSyncState.remoteIndexAvailable) {
+                syncWithToken()
+            } else {
+                syncWithPropfind()
+            }
             saveSyncState(localSyncState)
             Log.i(TAG, "Sync completed for ${account.name}")
         } catch (e: HttpException) {
@@ -93,16 +106,48 @@ class ContactsSyncManager(
             throw e
         }
         deletedHrefs.forEach { deleteLocalContactByRemoteFileName(it.substringAfterLast('/')) }
-        val localEtags = getLocalContactEtags()
+        val localMeta = getLocalContactMeta()
+        val knownRemoteFiles = localSyncState.remoteFiles.toMutableSet()
+        val deletedFileNames = deletedHrefs.map { it.substringAfterLast('/') }
+        knownRemoteFiles.removeAll(deletedFileNames.toSet())
+        changedHrefs.mapNotNullTo(knownRemoteFiles) { (href, _) ->
+            href.toHttpUrl().pathSegments.lastOrNull { it.isNotEmpty() }
+        }
         val contactsToDownload = changedHrefs
             .filter { (href, eTag) ->
                 val fileName = href.toHttpUrl().pathSegments.lastOrNull { it.isNotEmpty() }
                 // Some servers report an unchanged resource in a sync response. Do
                 // not rewrite its contact card when its stored ETag already matches.
-                eTag == null || fileName == null || localEtags[fileName] != eTag
+                eTag == null || fileName == null || localMeta[fileName]?.eTag != eTag
             }
             .map { it.first }
+            .toMutableList()
+
+        // A deletion in the Contacts app can remove the raw-contact row outright.
+        // The server has no change to report in that case, so compare the retained
+        // remote index with the current provider rows and fetch just the missing
+        // cards.
+        knownRemoteFiles
+            .filter { it !in localMeta }
+            .forEach { fileName ->
+                val href = collectionUrl.toHttpUrl().newBuilder().addPathSegment(fileName).build().toString()
+                if (href !in contactsToDownload) {
+                    Log.d(TAG, "Locally missing contact found: $fileName. Restoring from server.")
+                    contactsToDownload.add(href)
+                }
+            }
+
+        // Supplement with contacts that have been locally modified or deleted to enforce server state
+        getLocalDirtyOrDeletedContactFileNames().forEach { fileName ->
+            val href = collectionUrl.toHttpUrl().newBuilder().addPathSegment(fileName).build().toString()
+            if (href !in contactsToDownload) {
+                Log.d(TAG, "Locally dirty/deleted contact found: $fileName. Forcing re-sync from server.")
+                contactsToDownload.add(href)
+            }
+        }
+
         downloadAndApplyContacts(contactsToDownload)
+        localSyncState = localSyncState.copy(remoteFiles = knownRemoteFiles, remoteIndexAvailable = true)
         refreshSyncToken()
     }
 
@@ -117,11 +162,15 @@ class ContactsSyncManager(
             val fileName = response.href.pathSegments.lastOrNull { it.isNotEmpty() } ?: return@propfind
             remoteEtags[fileName] = eTag
         }
-        val localEtags = getLocalContactEtags()
-        val toDownload = remoteEtags.filter { (f, e) -> localEtags[f] != e }
+        val localMeta = getLocalContactMeta()
+        val toDownload = remoteEtags.filter { (f, e) ->
+            val meta = localMeta[f]
+            meta == null || meta.eTag != e || meta.dirty
+        }
             .keys.map { collectionUrl.toHttpUrl().newBuilder().addPathSegment(it).build().toString() }
-        localEtags.keys.filter { it !in remoteEtags.keys }.forEach { deleteLocalContactByRemoteFileName(it) }
+        localMeta.keys.filter { it !in remoteEtags.keys }.forEach { deleteLocalContactByRemoteFileName(it) }
         downloadAndApplyContacts(toDownload)
+        localSyncState = localSyncState.copy(remoteFiles = remoteEtags.keys, remoteIndexAvailable = true)
         refreshCTag()
     }
 
@@ -149,11 +198,11 @@ class ContactsSyncManager(
 
     // ── Provider helpers ──────────────────────────────────────────────────────
 
-    private fun getLocalContactEtags(): Map<String, String> {
-        val map = mutableMapOf<String, String>()
+    private fun getLocalContactMeta(): Map<String, LocalContactMeta> {
+        val map = mutableMapOf<String, LocalContactMeta>()
         provider.query(
             ContactsContract.RawContacts.CONTENT_URI,
-            arrayOf(ContactsContract.RawContacts.SOURCE_ID, ContactsContract.RawContacts.SYNC1),
+            arrayOf(ContactsContract.RawContacts.SOURCE_ID, ContactsContract.RawContacts.SYNC1, ContactsContract.RawContacts.DIRTY),
             "${ContactsContract.RawContacts.ACCOUNT_TYPE}=? AND ${ContactsContract.RawContacts.ACCOUNT_NAME}=? AND " +
             "${ContactsContract.RawContacts.DELETED}=0",
             arrayOf(account.type, account.name), null
@@ -161,10 +210,27 @@ class ContactsSyncManager(
             while (cursor.moveToNext()) {
                 val f = cursor.getString(0) ?: continue
                 val e = cursor.getString(1) ?: continue
-                map[f] = e
+                val d = cursor.getInt(2) != 0
+                map[f] = LocalContactMeta(e, d)
             }
         }
         return map
+    }
+
+    private fun getLocalDirtyOrDeletedContactFileNames(): Set<String> {
+        val fileNames = mutableSetOf<String>()
+        provider.query(
+            ContactsContract.RawContacts.CONTENT_URI,
+            arrayOf(ContactsContract.RawContacts.SOURCE_ID),
+            "${ContactsContract.RawContacts.ACCOUNT_TYPE}=? AND ${ContactsContract.RawContacts.ACCOUNT_NAME}=? AND " +
+            "(${ContactsContract.RawContacts.DIRTY}=1 OR ${ContactsContract.RawContacts.DELETED}=1)",
+            arrayOf(account.type, account.name), null
+        )?.use { cursor ->
+            while (cursor.moveToNext()) {
+                cursor.getString(0)?.let { fileNames.add(it) }
+            }
+        }
+        return fileNames
     }
 
     private fun applyContactToProvider(contact: Contact, fileName: String, eTag: String?, rawVCard: String) {
@@ -186,11 +252,14 @@ class ContactsSyncManager(
             ac.add()
             ac.id!!
         }
-        // AndroidContact.update() does not update our CardDAV metadata. Persist the
-        // new ETag for both inserts and updates so future syncs can skip this card.
-        updateLocalContactMeta(rawContactId, fileName, eTag, dirty = false, deleted = false)
         applyCustomPhoneLabels(rawContactId, extractCustomPhoneLabels(rawVCard))
         applyCustomImEntries(rawContactId, extractCustomImEntries(rawVCard))
+        applyContactGroups(rawContactId, contact.categories)
+        // All provider writes above can mark the parent raw contact DIRTY. Clear that
+        // marker last, after the card and its custom fields are fully applied, so an
+        // unchanged remote contact is not selected for download on every next sync.
+        // AndroidContact.update() also does not manage our CardDAV metadata.
+        updateLocalContactMeta(rawContactId, fileName, eTag, dirty = false, deleted = false)
     }
 
     private fun applyCustomPhoneLabels(rawContactId: Long, customPhoneLabels: List<CustomPhoneLabel>) {
@@ -450,7 +519,7 @@ class ContactsSyncManager(
             put(ContactsContract.RawContacts.SOURCE_ID, remoteFileName)
             put(ContactsContract.RawContacts.SYNC1, eTag)
             put(ContactsContract.RawContacts.DIRTY, if (dirty) 1 else 0)
-            if (deleted) put(ContactsContract.RawContacts.DELETED, 1)
+            put(ContactsContract.RawContacts.DELETED, if (deleted) 1 else 0)
         }
         provider.update(ContactsContract.RawContacts.CONTENT_URI, values,
             "${ContactsContract.RawContacts._ID}=?", arrayOf(rawContactId.toString()))
@@ -465,26 +534,44 @@ class ContactsSyncManager(
 
     // ── Sync state ────────────────────────────────────────────────────────────
 
-    private data class SyncState(val cTag: String? = null, val syncToken: String? = null)
+    /**
+     * [remoteIndexAvailable] distinguishes an empty address book from sync state
+     * written by older app versions, which did not retain a remote-file index.
+     */
+    private data class SyncState(
+        val cTag: String? = null,
+        val syncToken: String? = null,
+        val remoteFiles: Set<String> = emptySet(),
+        val remoteIndexAvailable: Boolean = false
+    )
 
     private fun loadSyncState(): SyncState {
         var cTag: String? = null; var syncToken: String? = null
+        var remoteIndexAvailable = false
+        val remoteFiles = mutableSetOf<String>()
         provider.query(ContactsContract.SyncState.CONTENT_URI, arrayOf(ContactsContract.SyncState.DATA),
             "${ContactsContract.SyncState.ACCOUNT_TYPE}=? AND ${ContactsContract.SyncState.ACCOUNT_NAME}=?",
             arrayOf(account.type, account.name), null
         )?.use { cursor ->
             if (cursor.moveToFirst()) cursor.getString(0)?.split("\n")?.forEach { line ->
                 val parts = line.split("=", limit = 2).takeIf { it.size == 2 } ?: return@forEach
-                when (parts[0]) { SYNC_STATE_CTAG -> cTag = parts[1]; SYNC_STATE_SYNC_TOKEN -> syncToken = parts[1] }
+                when (parts[0]) {
+                    SYNC_STATE_CTAG -> cTag = parts[1]
+                    SYNC_STATE_SYNC_TOKEN -> syncToken = parts[1]
+                    SYNC_STATE_REMOTE_INDEX -> remoteIndexAvailable = parts[1] == "1"
+                    SYNC_STATE_REMOTE_FILE -> remoteFiles += Uri.decode(parts[1])
+                }
             }
         }
-        return SyncState(cTag, syncToken)
+        return SyncState(cTag, syncToken, remoteFiles, remoteIndexAvailable)
     }
 
     private fun saveSyncState(state: SyncState) {
         val raw = buildString {
             state.cTag?.let { append("$SYNC_STATE_CTAG=$it\n") }
             state.syncToken?.let { append("$SYNC_STATE_SYNC_TOKEN=$it\n") }
+            append("$SYNC_STATE_REMOTE_INDEX=${if (state.remoteIndexAvailable) 1 else 0}\n")
+            state.remoteFiles.sorted().forEach { append("$SYNC_STATE_REMOTE_FILE=${Uri.encode(it)}\n") }
         }
         provider.insert(ContactsContract.SyncState.CONTENT_URI, ContentValues().apply {
             put(ContactsContract.SyncState.ACCOUNT_TYPE, account.type)
@@ -508,6 +595,83 @@ class ContactsSyncManager(
                 cTag = response[GetCTag::class.java]?.cTag,
                 syncToken = response[SyncToken::class.java]?.token
             )
+        }
+    }
+
+    private fun loadAccountGroups() {
+        accountGroups.clear()
+        provider.query(
+            ContactsContract.Groups.CONTENT_URI,
+            arrayOf(ContactsContract.Groups._ID, ContactsContract.Groups.TITLE),
+            "${ContactsContract.Groups.ACCOUNT_TYPE}=? AND ${ContactsContract.Groups.ACCOUNT_NAME}=? AND ${ContactsContract.Groups.DELETED}=0",
+            arrayOf(account.type, account.name), null
+        )?.use { cursor ->
+            while (cursor.moveToNext()) {
+                val id = cursor.getLong(0)
+                val title = cursor.getString(1) ?: continue
+                accountGroups[title] = id
+            }
+        }
+        Log.d(TAG, "Loaded ${accountGroups.size} groups for account ${account.name}")
+    }
+
+    private fun getOrCreateGroup(title: String): Long {
+        accountGroups[title]?.let { return it }
+
+        val values = ContentValues().apply {
+            put(ContactsContract.Groups.ACCOUNT_NAME, account.name)
+            put(ContactsContract.Groups.ACCOUNT_TYPE, account.type)
+            put(ContactsContract.Groups.TITLE, title)
+            put(ContactsContract.Groups.GROUP_VISIBLE, 1)
+        }
+        val uri = provider.insert(ContactsContract.Groups.CONTENT_URI, values)
+            ?: throw Exception("Failed to create group: $title")
+        val id = ContentUris.parseId(uri)
+        accountGroups[title] = id
+        return id
+    }
+
+    private fun applyContactGroups(rawContactId: Long, categories: List<String>) {
+        if (categories.isEmpty()) {
+            Log.d(TAG, "No categories for contact $rawContactId")
+        } else {
+            Log.d(TAG, "Applying categories for contact $rawContactId: $categories")
+        }
+        val targetGroupIds = categories.map { getOrCreateGroup(it) }.toSet()
+        val currentAccountGroupIds = mutableSetOf<Long>()
+
+        // 1. Find which groups of OUR account the contact is currently in
+        provider.query(
+            ContactsContract.Data.CONTENT_URI,
+            arrayOf(ContactsContract.CommonDataKinds.GroupMembership.GROUP_ROW_ID, ContactsContract.Data._ID),
+            "${ContactsContract.Data.RAW_CONTACT_ID}=? AND ${ContactsContract.Data.MIMETYPE}=?",
+            arrayOf(rawContactId.toString(), ContactsContract.CommonDataKinds.GroupMembership.CONTENT_ITEM_TYPE),
+            null
+        )?.use { cursor ->
+            while (cursor.moveToNext()) {
+                val groupId = cursor.getLong(0)
+                val dataId = cursor.getLong(1)
+
+                // Only touch groups that belong to THIS account
+                if (accountGroups.values.contains(groupId)) {
+                    if (groupId in targetGroupIds) {
+                        currentAccountGroupIds.add(groupId)
+                    } else {
+                        // Contact is in a group that's not in the VCard anymore -> Remove
+                        provider.delete(ContactsContract.Data.CONTENT_URI, "${ContactsContract.Data._ID}=?", arrayOf(dataId.toString()))
+                    }
+                }
+            }
+        }
+
+        // 2. Add missing groups
+        targetGroupIds.filter { it !in currentAccountGroupIds }.forEach { groupId ->
+            val values = ContentValues().apply {
+                put(ContactsContract.Data.RAW_CONTACT_ID, rawContactId)
+                put(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.GroupMembership.CONTENT_ITEM_TYPE)
+                put(ContactsContract.CommonDataKinds.GroupMembership.GROUP_ROW_ID, groupId)
+            }
+            provider.insert(ContactsContract.Data.CONTENT_URI, values)
         }
     }
 

@@ -1,0 +1,4 @@
+- `[ ]` Update `AccountConfig.kt` with hardcoded credentials
+- `[ ]` Add `performAutoSetup` to `MainViewModel.kt`
+- `[ ]` Integrate auto-setup logic into `MainActivity.kt`
+- `[ ]` Verify the automated setup

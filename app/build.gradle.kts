@@ -1,7 +1,15 @@
+import java.util.concurrent.TimeUnit
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
+}
+
+configurations.configureEach {
+    resolutionStrategy {
+        cacheChangingModulesFor(192, TimeUnit.HOURS)
+    }
 }
 
 android {
@@ -12,10 +20,11 @@ android {
         applicationId = "ali.paf.contacts"
         minSdk = 24
         targetSdk = 34
-        versionCode = 10007
-        versionName = "1.0.7"
+        versionCode = 100200
+        versionName = "1.0.20"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        versionNameSuffix = "PAF"
     }
 
     buildTypes {
@@ -43,12 +52,14 @@ android {
 }
 
 dependencies {
+    implementation(libs.androidx.constraintlayout)
     implementation(libs.androidx.core)
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.activity)
     implementation(libs.androidx.lifecycle.viewmodel)
     implementation(libs.androidx.lifecycle.runtime)
     implementation(libs.material)
+    implementation(libs.guava.listenablefuture)
 
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)

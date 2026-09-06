@@ -7,7 +7,9 @@ import android.os.Bundle
 import android.provider.ContactsContract
 import android.util.Log
 import ali.paf.contacts.sync.ContactsSyncManager
+import ali.paf.contacts.sync.SyncStatusStore
 import ali.paf.contacts.util.HttpClientFactory
+import java.util.Random
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -74,7 +76,7 @@ class AccountRepository @Inject constructor(private val context: Context) {
         // pair is explicitly marked syncable.
         ContentResolver.setIsSyncable(abAccount, ContactsContract.AUTHORITY, 1)
         ContentResolver.setSyncAutomatically(abAccount, ContactsContract.AUTHORITY, true)
-        ContentResolver.addPeriodicSync(abAccount, ContactsContract.AUTHORITY, Bundle.EMPTY, 4 * 60 * 60L)
+        scheduleRandomPeriodicSync(abAccount)
         ensureContactsAreVisible(abAccount)
         return abAccount
     }
@@ -103,19 +105,22 @@ class AccountRepository @Inject constructor(private val context: Context) {
 
     fun syncNowDirect(mainAccount: Account, forceResync: Boolean = false): Result<Int> {
         val am = AccountManager.get(context)
-        val addressBooks = getAddressBookAccounts(mainAccount)
-        if (addressBooks.isEmpty()) {
-            return Result.failure(IllegalStateException("No address books found for ${mainAccount.name}"))
-        }
-
-        val baseUrl = am.getUserData(mainAccount, AccountConfig.KEY_BASE_URL)
-            ?: return Result.failure(IllegalStateException("Missing base URL for ${mainAccount.name}"))
-        val username = am.getUserData(mainAccount, AccountConfig.KEY_USERNAME)
-            ?: return Result.failure(IllegalStateException("Missing username for ${mainAccount.name}"))
-        val password = am.getPassword(mainAccount)
-            ?: return Result.failure(IllegalStateException("Missing password for ${mainAccount.name}"))
+        val syncStatusStore = SyncStatusStore(context)
+        syncStatusStore.recordAttemptStarted(mainAccount)
 
         return runCatching {
+            val addressBooks = getAddressBookAccounts(mainAccount)
+            check(addressBooks.isNotEmpty()) { "No address books found for ${mainAccount.name}" }
+
+            val baseUrl = requireNotNull(am.getUserData(mainAccount, AccountConfig.KEY_BASE_URL)) {
+                "Missing base URL for ${mainAccount.name}"
+            }
+            val username = requireNotNull(am.getUserData(mainAccount, AccountConfig.KEY_USERNAME)) {
+                "Missing username for ${mainAccount.name}"
+            }
+            val password = requireNotNull(am.getPassword(mainAccount)) {
+                "Missing password for ${mainAccount.name}"
+            }
             var syncedCount = 0
             addressBooks.forEach { ab ->
                 ensureContactsAreVisible(ab)
@@ -133,23 +138,47 @@ class AccountRepository @Inject constructor(private val context: Context) {
                     syncedCount++
                 }
             }
+            syncStatusStore.recordSuccessfulSync(mainAccount)
             syncedCount
-        }
+        }.onFailure { syncStatusStore.recordFailedSync(mainAccount, it) }
+    }
+
+    fun scheduleRandomPeriodicSync(account: Account) {
+        val minSeconds = AccountConfig.SYNC_MIN_DAYS * 24 * 60 * 60L
+        val maxSeconds = AccountConfig.SYNC_MAX_DAYS * 24 * 60 * 60L
+        val intervalSeconds = minSeconds + (Random().nextDouble() * (maxSeconds - minSeconds)).toLong()
+
+        Log.i(TAG, "Scheduling periodic sync for ${account.name} in ${intervalSeconds / (24 * 60 * 60)} days ($intervalSeconds s)")
+        ContentResolver.addPeriodicSync(account, ContactsContract.AUTHORITY, Bundle.EMPTY, intervalSeconds)
     }
 
     private fun ensureContactsAreVisible(account: Account) {
-        val values = ContentValues().apply {
-            put(ContactsContract.Settings.ACCOUNT_NAME, account.name)
-            put(ContactsContract.Settings.ACCOUNT_TYPE, account.type)
-            put(ContactsContract.Settings.UNGROUPED_VISIBLE, 1)
-            put(ContactsContract.Settings.SHOULD_SYNC, 1)
+        // Double check permissions to avoid crash if called prematurely
+        val hasRead = context.checkSelfPermission(android.Manifest.permission.READ_CONTACTS) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        val hasWrite = context.checkSelfPermission(android.Manifest.permission.WRITE_CONTACTS) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (!hasRead || !hasWrite) {
+            Log.w(TAG, "Cannot ensure contacts visibility: Missing permissions")
+            return
         }
 
-        val where = "${ContactsContract.Settings.ACCOUNT_NAME}=? AND ${ContactsContract.Settings.ACCOUNT_TYPE}=?"
-        val args = arrayOf(account.name, account.type)
-        val updated = context.contentResolver.update(ContactsContract.Settings.CONTENT_URI, values, where, args)
-        if (updated == 0) {
-            context.contentResolver.insert(ContactsContract.Settings.CONTENT_URI, values)
+        try {
+            val values = ContentValues().apply {
+                put(ContactsContract.Settings.ACCOUNT_NAME, account.name)
+                put(ContactsContract.Settings.ACCOUNT_TYPE, account.type)
+                put(ContactsContract.Settings.UNGROUPED_VISIBLE, 1)
+                put(ContactsContract.Settings.SHOULD_SYNC, 1)
+            }
+
+            val where = "${ContactsContract.Settings.ACCOUNT_NAME}=? AND ${ContactsContract.Settings.ACCOUNT_TYPE}=?"
+            val args = arrayOf(account.name, account.type)
+            val updated = context.contentResolver.update(ContactsContract.Settings.CONTENT_URI, values, where, args)
+            if (updated == 0) {
+                context.contentResolver.insert(ContactsContract.Settings.CONTENT_URI, values)
+            }
+        } catch (e: SecurityException) {
+            Log.e(TAG, "SecurityException while ensuring contacts visibility", e)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error ensuring contacts visibility", e)
         }
     }
 }

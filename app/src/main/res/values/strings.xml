@@ -19,6 +19,18 @@
     <string name="main_no_accounts">No accounts yet.\nTap + to add the syncing account.</string>
     <string name="main_remove_account">Remove account</string>
     <string name="main_sync_now">Sync now</string>
+    <string name="main_last_update">Last successful update: \n%1$s</string>
+    <string name="main_last_update_never">Last successful update: Never</string>
+    <string name="main_last_attempt">Last update attempt:\n%1$s</string>
+
+    <!-- App info -->
+    <string name="app_info_title">App info</string>
+    <string name="app_info_version">Version %1$s</string>
+    <string name="app_info_description">This app keeps Air Directory automatically synchronized on this device.</string>
+    <string name="app_info_copyright">Copyright © 2026 No 1 Comm Wing\nmuhammmadali\nAll Rights Reserved</string>
+    <string name="app_info_instructions"><b>IMPORTANT</b>\n1. Contacts are updated periodically in 30 to 45 days. \n2. The only case in which manual sync may be performed is if a specific contact cannot be found in the user contacts. \n3. Excessive re-syncs (manually) may cause very high drainage of battery.</string>
+    <string name="app_info_user_guide">AirContacts\nUser Guide</string>
+    <string name="main_activity_instructions"><b>INSTRUCTIONS</b>\n1. AirContacts automatically synchronizes Air Directory (PAFCOM LTE - DEFCOM - AirCom Contacts).\n2. Pressing Sync Button re-syncs the contacts manually.\n3. Users may delete old local contacts while using the app for the first time. Detailed guideline is available by pressing ⓘ button at the top right.</string>>
 
     <!-- Address book screen -->
     <string name="addressbook_title">Address Books</string>
@@ -31,4 +43,18 @@
     <string name="notification_channel_sync">Sync status</string>
     <string name="notification_sync_error_title">Sync error</string>
     <string name="notification_sync_error_text">Could not sync %1$s</string>
+
+    <!-- Battery Optimization -->
+    <string name="battery_opt_title">Background Sync</string>
+    <string name="battery_opt_message">To keep your contacts synced reliably, the app needs to run in the background without battery restrictions.</string>
+    <string name="battery_opt_positive">Allow background sync</string>
+    <string name="battery_opt_negative">Not now</string>
+
+    <!-- Unused App Restrictions / Hibernation -->
+    <string name="unused_app_restrictions_title">Unused App Settings</string>
+    <string name="unused_app_restrictions_message">Android may automatically reset app permissions if it isn\'t used for long time, causing background synchronization to fail.\n\nTo ensure reliable sync, please <b>TURN OFF\nManage app if unused</b>\nin app settings.</string>
+    <string name="unused_app_restrictions_positive">Go to App Settings</string>
+
+    <!-- Button Text for Sync Button in ItemAccount.xml UI -->
+    <string name="SYNC_NOW_BUTTON_TEXT">SYNC\nNOW</string>
 </resources>

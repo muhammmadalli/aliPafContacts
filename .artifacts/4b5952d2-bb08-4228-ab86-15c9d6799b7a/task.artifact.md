@@ -1,0 +1,3 @@
+- [x] Create `ViewExtensions.kt` with `performRobustHapticFeedback`
+- [x] Update `AppInfoActivity.kt` to use robust haptics
+- [x] Update `AccountsAdapter.kt` to use robust haptics

@@ -1,0 +1,5 @@
+- [x] Add `card_surface_background` to `res/values/colors.xml`
+- [x] Create `res/values-night/colors.xml` with dark `card_surface_background`
+- [x] Update `activity_main.xml` to use `@color/card_surface_background`
+- [x] Update `item_account.xml` to use `@color/card_surface_background`
+- [x] Verify build

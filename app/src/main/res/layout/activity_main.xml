@@ -2,18 +2,44 @@
 <androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:backgroundTint="#b3e6ff">
+    android:layout_height="match_parent">
+
+    <ImageView
+        android:id="@+id/background_image"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:alpha=".9"
+        android:contentDescription="@null"
+        android:paddingBottom="300dp"
+        android:scaleType="fitCenter"
+        android:scaleX=".5"
+        android:scaleY=".5"
+        android:src="@drawable/kahaf1_removebg_preview" />
 
     <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
 
-        <androidx.appcompat.widget.Toolbar
+        <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            app:title="@string/main_title" />
+            android:layout_height="60dp"
+            android:gravity="start|center_vertical"
+            app:logo="@drawable/address_book_3_50dp"
+            app:logoDescription="@string/app_name"
+            app:title="@string/main_title">
+
+            <ImageButton
+                android:id="@+id/btn_app_info"
+                android:layout_width="35dp"
+                android:layout_height="35dp"
+                android:layout_gravity="end|center_vertical"
+                android:layout_marginEnd="8dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/app_info_title"
+                android:scaleType="fitCenter"
+                android:src="@drawable/infobutton_removebg" />
+        </com.google.android.material.appbar.MaterialToolbar>
 
     </com.google.android.material.appbar.AppBarLayout>
 
@@ -32,19 +58,55 @@
         android:layout_height="match_parent"
         android:clipToPadding="false"
         android:padding="8dp"
+        android:paddingBottom="112dp"
         app:layout_behavior="@string/appbar_scrolling_view_behavior" />
 
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/fab_add_account"
-        android:layout_width="88dp"
-        android:layout_height="88dp"
-        app:fabCustomSize="88dp"
-        app:backgroundTint="#4dc3ff"
-        android:scaleType="center"
-        android:layout_gravity="bottom|end"
-        android:layout_margin="16dp"
-        android:adjustViewBounds="false"
-        android:src="@android:drawable/ic_input_add"
-        android:contentDescription="@string/main_add_account" />
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center"
+        android:orientation="vertical">
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/main_instructions_card"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_marginTop="16dp"
+            android:layout_marginEnd="16dp"
+            android:layout_marginBottom="16dp"
+            app:cardBackgroundColor="@color/card_surface_background"
+            app:cardCornerRadius="8dp"
+            app:cardElevation="4dp">
+
+            <TextView
+                android:id="@+id/main_instructions_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:justificationMode="inter_word"
+                android:padding="16dp"
+                android:text="@string/main_activity_instructions"
+                android:textAppearance="@style/TextAppearance.AppCompat.Body2" />
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/sync_status_card"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_marginEnd="16dp"
+            android:layout_marginBottom="16dp"
+            app:cardBackgroundColor="@color/card_surface_background"
+            app:cardCornerRadius="8dp"
+            app:cardElevation="4dp">
+
+            <TextView
+                android:id="@+id/tv_sync_status"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="16dp"
+                android:textAppearance="@style/TextAppearance.AppCompat.Body2" />
+        </com.google.android.material.card.MaterialCardView>
+    </LinearLayout>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

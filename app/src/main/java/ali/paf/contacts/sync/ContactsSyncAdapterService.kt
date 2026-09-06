@@ -42,27 +42,54 @@ class ContactsSyncAdapterService : Service() {
             val am = AccountManager.get(context)
 
             val mainAccountName = am.getUserData(account, AccountConfig.KEY_MAIN_ACCOUNT_NAME)
-                ?: run { syncResult.stats.numAuthExceptions++; return }
+                ?: run {
+                    SyncStatusStore(context).recordFailedSync(account, IllegalStateException("Missing main account configuration"))
+                    syncResult.stats.numAuthExceptions++
+                    return
+                }
             val mainAccountType = am.getUserData(account, AccountConfig.KEY_MAIN_ACCOUNT_TYPE)
                 ?: AccountConfig.ACCOUNT_TYPE
             val mainAccount = Account(mainAccountName, mainAccountType)
+            val syncStatusStore = SyncStatusStore(context)
+            syncStatusStore.recordAttemptStarted(mainAccount)
 
             val baseUrl = am.getUserData(mainAccount, AccountConfig.KEY_BASE_URL)
-                ?: run { syncResult.stats.numAuthExceptions++; return }
+                ?: run {
+                    syncStatusStore.recordFailedSync(mainAccount, IllegalStateException("Missing base URL"))
+                    syncResult.stats.numAuthExceptions++
+                    return
+                }
             val username = am.getUserData(mainAccount, AccountConfig.KEY_USERNAME)
-                ?: run { syncResult.stats.numAuthExceptions++; return }
+                ?: run {
+                    syncStatusStore.recordFailedSync(mainAccount, IllegalStateException("Missing username"))
+                    syncResult.stats.numAuthExceptions++
+                    return
+                }
             val password = am.getPassword(mainAccount)
-                ?: run { syncResult.stats.numAuthExceptions++; return }
+                ?: run {
+                    syncStatusStore.recordFailedSync(mainAccount, IllegalStateException("Missing password"))
+                    syncResult.stats.numAuthExceptions++
+                    return
+                }
             val collectionUrl = am.getUserData(account, AccountConfig.KEY_COLLECTION_URL)
-                ?: run { syncResult.databaseError = true; return }
+                ?: run {
+                    syncStatusStore.recordFailedSync(mainAccount, IllegalStateException("Missing address book URL"))
+                    syncResult.databaseError = true
+                    return
+                }
 
             val httpClient = HttpClientFactory.create(context, username, password)
             try {
                 ContactsSyncManager(context, account, provider, httpClient, collectionUrl, extras).performSync()
+                syncStatusStore.recordSuccessfulSync(mainAccount)
+                // Reschedule with a new random interval after success
+                ali.paf.contacts.account.AccountRepository(context).scheduleRandomPeriodicSync(account)
             } catch (e: Exception) {
                 Log.e(TAG, "Sync failed for ${account.name}", e)
                 syncResult.stats.numIoExceptions++
-                notifySyncError(account.name, e.message ?: "Unknown error")
+                val message = SyncStatusStore.describeFailure(e)
+                syncStatusStore.recordFailedSync(mainAccount, e)
+                notifySyncError(account.name, message)
             }
         }
 
