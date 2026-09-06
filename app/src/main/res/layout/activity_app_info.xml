@@ -80,6 +80,11 @@
                 android:textColor="@color/nextcloud_blue_dark"
                 android:textSize="24sp"
                 app:cornerRadius="8dp"
+                app:icon="@drawable/pdf_file_icon_with_transparent_bg"
+                app:iconGravity="textStart"
+                app:iconPadding="8dp"
+                app:iconSize="40dp"
+                app:iconTint="@null"
                 app:strokeColor="@color/nextcloud_blue_dark"
                 app:strokeWidth="2dp" />
 

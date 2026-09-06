@@ -37,7 +37,8 @@
                 android:layout_marginEnd="8dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/app_info_title"
-                android:src="@android:drawable/ic_dialog_info" />
+                android:scaleType="fitCenter"
+                android:src="@drawable/infobutton_removebg" />
         </com.google.android.material.appbar.MaterialToolbar>
 
     </com.google.android.material.appbar.AppBarLayout>
