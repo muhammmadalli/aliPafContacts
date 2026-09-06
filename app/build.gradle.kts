@@ -20,8 +20,8 @@ android {
         applicationId = "ali.paf.contacts"
         minSdk = 24
         targetSdk = 34
-        versionCode = 100190
-        versionName = "1.0.19"
+        versionCode = 100200
+        versionName = "1.0.20"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         versionNameSuffix = "PAF"
