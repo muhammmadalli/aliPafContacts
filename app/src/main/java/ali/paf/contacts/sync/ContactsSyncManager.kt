@@ -2,6 +2,7 @@ package ali.paf.contacts.sync
 
 import android.accounts.Account
 import android.content.*
+import android.content.ContentUris
 import android.net.Uri
 import android.os.Bundle
 import android.provider.ContactsContract
@@ -52,11 +53,13 @@ class ContactsSyncManager(
         )
     }
 
+    private val accountGroups = mutableMapOf<String, Long>()
     private val davAddressBook = DavAddressBook(httpClient, collectionUrl.toHttpUrl())
     private var localSyncState: SyncState = loadSyncState()
 
     fun performSync() {
         Log.i(TAG, "Starting sync for ${account.name}")
+        loadAccountGroups()
         val forceResync = extras.getBoolean("force_resync", false)
         if (forceResync) {
             Log.i(TAG, "Force resync — clearing local sync state")
@@ -251,6 +254,7 @@ class ContactsSyncManager(
         }
         applyCustomPhoneLabels(rawContactId, extractCustomPhoneLabels(rawVCard))
         applyCustomImEntries(rawContactId, extractCustomImEntries(rawVCard))
+        applyContactGroups(rawContactId, contact.categories)
         // All provider writes above can mark the parent raw contact DIRTY. Clear that
         // marker last, after the card and its custom fields are fully applied, so an
         // unchanged remote contact is not selected for download on every next sync.
@@ -591,6 +595,83 @@ class ContactsSyncManager(
                 cTag = response[GetCTag::class.java]?.cTag,
                 syncToken = response[SyncToken::class.java]?.token
             )
+        }
+    }
+
+    private fun loadAccountGroups() {
+        accountGroups.clear()
+        provider.query(
+            ContactsContract.Groups.CONTENT_URI,
+            arrayOf(ContactsContract.Groups._ID, ContactsContract.Groups.TITLE),
+            "${ContactsContract.Groups.ACCOUNT_TYPE}=? AND ${ContactsContract.Groups.ACCOUNT_NAME}=? AND ${ContactsContract.Groups.DELETED}=0",
+            arrayOf(account.type, account.name), null
+        )?.use { cursor ->
+            while (cursor.moveToNext()) {
+                val id = cursor.getLong(0)
+                val title = cursor.getString(1) ?: continue
+                accountGroups[title] = id
+            }
+        }
+        Log.d(TAG, "Loaded ${accountGroups.size} groups for account ${account.name}")
+    }
+
+    private fun getOrCreateGroup(title: String): Long {
+        accountGroups[title]?.let { return it }
+
+        val values = ContentValues().apply {
+            put(ContactsContract.Groups.ACCOUNT_NAME, account.name)
+            put(ContactsContract.Groups.ACCOUNT_TYPE, account.type)
+            put(ContactsContract.Groups.TITLE, title)
+            put(ContactsContract.Groups.GROUP_VISIBLE, 1)
+        }
+        val uri = provider.insert(ContactsContract.Groups.CONTENT_URI, values)
+            ?: throw Exception("Failed to create group: $title")
+        val id = ContentUris.parseId(uri)
+        accountGroups[title] = id
+        return id
+    }
+
+    private fun applyContactGroups(rawContactId: Long, categories: List<String>) {
+        if (categories.isEmpty()) {
+            Log.d(TAG, "No categories for contact $rawContactId")
+        } else {
+            Log.d(TAG, "Applying categories for contact $rawContactId: $categories")
+        }
+        val targetGroupIds = categories.map { getOrCreateGroup(it) }.toSet()
+        val currentAccountGroupIds = mutableSetOf<Long>()
+
+        // 1. Find which groups of OUR account the contact is currently in
+        provider.query(
+            ContactsContract.Data.CONTENT_URI,
+            arrayOf(ContactsContract.CommonDataKinds.GroupMembership.GROUP_ROW_ID, ContactsContract.Data._ID),
+            "${ContactsContract.Data.RAW_CONTACT_ID}=? AND ${ContactsContract.Data.MIMETYPE}=?",
+            arrayOf(rawContactId.toString(), ContactsContract.CommonDataKinds.GroupMembership.CONTENT_ITEM_TYPE),
+            null
+        )?.use { cursor ->
+            while (cursor.moveToNext()) {
+                val groupId = cursor.getLong(0)
+                val dataId = cursor.getLong(1)
+
+                // Only touch groups that belong to THIS account
+                if (accountGroups.values.contains(groupId)) {
+                    if (groupId in targetGroupIds) {
+                        currentAccountGroupIds.add(groupId)
+                    } else {
+                        // Contact is in a group that's not in the VCard anymore -> Remove
+                        provider.delete(ContactsContract.Data.CONTENT_URI, "${ContactsContract.Data._ID}=?", arrayOf(dataId.toString()))
+                    }
+                }
+            }
+        }
+
+        // 2. Add missing groups
+        targetGroupIds.filter { it !in currentAccountGroupIds }.forEach { groupId ->
+            val values = ContentValues().apply {
+                put(ContactsContract.Data.RAW_CONTACT_ID, rawContactId)
+                put(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.GroupMembership.CONTENT_ITEM_TYPE)
+                put(ContactsContract.CommonDataKinds.GroupMembership.GROUP_ROW_ID, groupId)
+            }
+            provider.insert(ContactsContract.Data.CONTENT_URI, values)
         }
     }
 
