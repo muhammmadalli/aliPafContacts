@@ -51,7 +51,9 @@
             android:id="@+id/btn_sync"
             android:layout_width="85dp"
             android:layout_height="85dp"
+            android:adjustViewBounds="false"
             android:contentDescription="@string/main_sync_now"
+            android:cropToPadding="false"
             android:hapticFeedbackEnabled="true"
             android:scaleType="fitCenter"
             android:src="@drawable/syncbtn2" />

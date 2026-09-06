@@ -98,12 +98,6 @@
                 android:text="@string/app_info_instructions"
                 android:textAppearance="@style/TextAppearance.AppCompat.Medium" />
 
-            <View
-                android:id="@+id/divider3"
-                android:layout_width="match_parent"
-                android:layout_height="10dp"
-                android:background="?android:attr/listDivider" />
-
         </LinearLayout>
 
     </ScrollView>
@@ -113,6 +107,12 @@
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|center"
         android:orientation="vertical">
+
+        <View
+            android:id="@+id/divider3"
+            android:layout_width="match_parent"
+            android:layout_height="10dp"
+            android:background="?android:attr/listDivider" />
 
         <TextView
             android:id="@+id/textView2"
